@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { APP_NAME } from "@/lib/brand";
 import { createClient } from "@/lib/supabase/client";
 
@@ -59,24 +58,6 @@ export function SignInContent() {
 
 		router.push(redirectTo);
 		router.refresh();
-	}
-
-	async function handleGoogleSignIn() {
-		setIsLoading(true);
-		setError(null);
-		const supabase = createClient();
-
-		const { error: googleError } = await supabase.auth.signInWithOAuth({
-			provider: "google",
-			options: {
-				redirectTo: `${window.location.origin}/auth/callback?redirect=${redirectTo}`,
-			},
-		});
-
-		if (googleError) {
-			setError(googleError.message);
-			setIsLoading(false);
-		}
 	}
 
 	return (
@@ -142,22 +123,6 @@ export function SignInContent() {
 									: "Create Account"}
 						</Button>
 					</form>
-
-					<div className="relative my-4">
-						<Separator />
-						<span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
-							or
-						</span>
-					</div>
-
-					<Button
-						variant="outline"
-						className="w-full"
-						onClick={handleGoogleSignIn}
-						disabled={isLoading}
-					>
-						Sign in with Google
-					</Button>
 
 					<p className="mt-4 text-center text-xs text-muted-foreground">
 						{mode === "sign-in" ? (
