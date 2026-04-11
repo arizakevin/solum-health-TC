@@ -21,8 +21,8 @@ export default function RootLayout({
 	children: React.ReactNode;
 }>) {
 	return (
-		<html lang="en" className={`${inter.variable} h-full antialiased`}>
-			<body className="min-h-full bg-background font-sans text-foreground">
+		<html lang="en" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
+			<body className="min-h-full bg-background font-sans text-foreground" suppressHydrationWarning>
 				<TooltipProvider>
 					{children}
 					<Toaster />

@@ -23,6 +23,11 @@ build/
 *.swp
 *.swo
 
+# Agent skills (installed per-machine)
+.agents/
+.continue/
+skills-lock.json
+
 # OS
 .DS_Store
 Thumbs.db
