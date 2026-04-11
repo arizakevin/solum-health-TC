@@ -23,7 +23,10 @@ export default async function CaseReviewPage({
 
 	if (!caseData) notFound();
 
-	const documents = caseData.documents.map((d) => ({
+	const docs = caseData.documents;
+	const fields = caseData.extractionFields;
+
+	const documents = docs.map((d: (typeof docs)[number]) => ({
 		id: d.id,
 		filename: d.filename,
 		contentType: d.contentType,
@@ -31,13 +34,13 @@ export default async function CaseReviewPage({
 		uploadedAt: d.uploadedAt,
 	}));
 
-	const highCount = caseData.extractionFields.filter(
-		(f) => f.confidence === "high",
+	const highCount = fields.filter(
+		(f: (typeof fields)[number]) => f.confidence === "high",
 	).length;
-	const medCount = caseData.extractionFields.filter(
-		(f) => f.confidence === "medium",
+	const medCount = fields.filter(
+		(f: (typeof fields)[number]) => f.confidence === "medium",
 	).length;
-	const total = caseData.extractionFields.length;
+	const total = fields.length;
 	const aggregateConfidence =
 		total > 0
 			? (highCount * 95 + medCount * 78 + (total - highCount - medCount) * 45) /
@@ -45,9 +48,7 @@ export default async function CaseReviewPage({
 			: 0;
 
 	const extractionDate =
-		caseData.extractionFields.length > 0
-			? caseData.extractionFields[0].extractedAt
-			: null;
+		fields.length > 0 ? fields[0].extractedAt : null;
 
 	return (
 		<CaseReviewClient
