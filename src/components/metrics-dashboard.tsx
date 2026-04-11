@@ -1,16 +1,8 @@
 "use client";
 
 import { BarChart3, FileCheck, FileText, TrendingUp } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { RecentCorrectionsTable } from "@/components/recent-corrections-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
 
 interface MetricsData {
 	totalCases: number;
@@ -18,14 +10,6 @@ interface MetricsData {
 	fieldsCorrected: { count: number; total: number };
 	docsProcessed: number;
 	correctionsBySection: Record<string, { corrected: number; total: number }>;
-	recentCorrections: {
-		caseId: string;
-		field: string;
-		originalValue: string;
-		correctedValue: string;
-		section: string;
-		date: Date;
-	}[];
 }
 
 const SECTION_NAMES: Record<string, string> = {
@@ -146,51 +130,7 @@ export function MetricsDashboard({ data }: { data: MetricsData }) {
 					<CardTitle className="text-base">Recent Corrections</CardTitle>
 				</CardHeader>
 				<CardContent>
-					{data.recentCorrections.length === 0 ? (
-						<p className="py-4 text-center text-sm text-muted-foreground">
-							No corrections recorded yet
-						</p>
-					) : (
-						<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead>Case</TableHead>
-									<TableHead>Field</TableHead>
-									<TableHead>Original</TableHead>
-									<TableHead>Corrected</TableHead>
-									<TableHead>Section</TableHead>
-									<TableHead>Date</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{data.recentCorrections.map((c, i) => (
-									<TableRow key={`${c.caseId}-${c.field}-${i}`}>
-										<TableCell className="font-mono text-xs">
-											#{c.caseId.slice(0, 8)}
-										</TableCell>
-										<TableCell className="text-sm">{c.field}</TableCell>
-										<TableCell className="max-w-[120px] truncate text-xs text-muted-foreground">
-											{c.originalValue || "—"}
-										</TableCell>
-										<TableCell className="max-w-[120px] truncate text-xs">
-											{c.correctedValue}
-										</TableCell>
-										<TableCell>
-											<Badge variant="secondary" className="text-xs">
-												{SECTION_NAMES[c.section] ?? c.section}
-											</Badge>
-										</TableCell>
-										<TableCell className="text-xs text-muted-foreground">
-											{c.date.toLocaleDateString("en-US", {
-												month: "short",
-												day: "numeric",
-											})}
-										</TableCell>
-									</TableRow>
-								))}
-							</TableBody>
-						</Table>
-					)}
+					<RecentCorrectionsTable />
 				</CardContent>
 			</Card>
 		</div>

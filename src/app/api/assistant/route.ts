@@ -5,8 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 
 export const maxDuration = 60;
 
-const SYSTEM_PROMPT = `You are Annie, an AI case assistant for Solum Health.
-You help healthcare administrators with service request processing.
+const SYSTEM_PROMPT = `You are Annie, an AI case assistant for AuthScribe by Solum Health.
+You help healthcare administrators with prior authorization and service request processing.
 You are knowledgeable about:
 - Prior authorization processes and forms (sections A through G)
 - Medical coding (CPT, ICD-10)

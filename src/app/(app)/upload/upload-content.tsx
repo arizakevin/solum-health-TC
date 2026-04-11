@@ -1,9 +1,9 @@
 "use client";
 
-import { createCase } from "@/app/actions/cases";
-import { UploadDropzone } from "@/components/upload-dropzone";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { createCase } from "@/app/actions/cases";
+import { UploadDropzone } from "@/components/upload-dropzone";
 
 export function UploadContent() {
 	const router = useRouter();
@@ -24,9 +24,9 @@ export function UploadContent() {
 		}
 	}, [caseId, isCreating]);
 
-	async function handleExtract() {
+	function handleDone() {
 		if (!caseId) return;
-		router.push(`/case/${caseId}`);
+		router.push(`/case/${caseId}?extract=1`);
 	}
 
 	if (!caseId) {
@@ -37,5 +37,5 @@ export function UploadContent() {
 		);
 	}
 
-	return <UploadDropzone caseId={caseId} onAllUploaded={handleExtract} />;
+	return <UploadDropzone caseId={caseId} onAllUploaded={handleDone} />;
 }

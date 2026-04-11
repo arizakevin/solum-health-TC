@@ -1,13 +1,12 @@
 "use client";
 
-import { Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { AppLogo } from "@/components/app-logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { APP_NAME } from "@/lib/brand";
 import { createClient } from "@/lib/supabase/client";
 
 type Mode = "sign-in" | "sign-up";
@@ -21,6 +20,7 @@ export function SignInContent() {
 	const [fullName, setFullName] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [success, setSuccess] = useState<string | null>(null);
 
 	const redirectTo = searchParams.get("redirect") ?? "/";
 
@@ -28,45 +28,54 @@ export function SignInContent() {
 		e.preventDefault();
 		setIsLoading(true);
 		setError(null);
+		setSuccess(null);
 
-		const supabase = createClient();
+		try {
+			const supabase = createClient();
 
-		if (mode === "sign-up") {
-			const { error: signUpError } = await supabase.auth.signUp({
-				email,
-				password,
-				options: {
-					data: { full_name: fullName },
-				},
-			});
-			if (signUpError) {
-				setError(signUpError.message);
-				setIsLoading(false);
-				return;
+			if (mode === "sign-up") {
+				const { data, error: signUpError } = await supabase.auth.signUp({
+					email,
+					password,
+					options: {
+						data: { full_name: fullName },
+					},
+				});
+				if (signUpError) {
+					setError(signUpError.message);
+					return;
+				}
+				if (data.user && !data.session) {
+					setSuccess(
+						"Account created! Check your email to confirm, then sign in.",
+					);
+					setMode("sign-in");
+					return;
+				}
+			} else {
+				const { error: signInError } = await supabase.auth.signInWithPassword({
+					email,
+					password,
+				});
+				if (signInError) {
+					setError(signInError.message);
+					return;
+				}
 			}
-		} else {
-			const { error: signInError } = await supabase.auth.signInWithPassword({
-				email,
-				password,
-			});
-			if (signInError) {
-				setError(signInError.message);
-				setIsLoading(false);
-				return;
-			}
+
+			router.push(redirectTo);
+			router.refresh();
+		} finally {
+			setIsLoading(false);
 		}
-
-		router.push(redirectTo);
-		router.refresh();
 	}
 
 	return (
 		<div className="flex min-h-screen items-center justify-center bg-muted/40 px-4">
 			<Card className="w-full max-w-sm">
 				<CardHeader className="text-center">
-					<div className="mx-auto mb-2 flex items-center gap-2">
-						<Plus className="h-6 w-6 rounded-full bg-primary p-0.5 text-primary-foreground" />
-						<span className="text-lg font-semibold">{APP_NAME}</span>
+					<div className="mx-auto mb-2 flex justify-center px-2">
+						<AppLogo className="max-w-full" priority />
 					</div>
 					<CardTitle>
 						{mode === "sign-in"
@@ -114,8 +123,9 @@ export function SignInContent() {
 						</div>
 
 						{error && <p className="text-sm text-red-500">{error}</p>}
+						{success && <p className="text-sm text-green-600">{success}</p>}
 
-						<Button className="w-full" disabled={isLoading}>
+						<Button type="submit" className="w-full" disabled={isLoading}>
 							{isLoading
 								? "Loading..."
 								: mode === "sign-in"

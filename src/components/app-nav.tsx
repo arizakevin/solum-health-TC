@@ -1,30 +1,38 @@
 "use client";
 
-import { LogOut, Plus, User } from "lucide-react";
+import { LogOut, Moon, Sun } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
+import { AppLogo } from "@/components/app-logo";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { APP_NAME } from "@/lib/brand";
+import { LOGO_SUBTITLE_INSET_PERCENT, PRODUCT_NAME } from "@/lib/brand";
 import { createClient } from "@/lib/supabase/client";
 
 const NAV_LINKS = [
 	{ href: "/", label: "Dashboard" },
-	{ href: "/upload", label: "Upload" },
 	{ href: "/metrics", label: "Metrics" },
 ] as const;
 
 export function AppNav() {
 	const pathname = usePathname();
 	const router = useRouter();
+	const { resolvedTheme, setTheme } = useTheme();
 	const [userEmail, setUserEmail] = useState<string | null>(null);
 	const [initials, setInitials] = useState("U");
+	const [themeMounted, setThemeMounted] = useState(false);
+
+	useEffect(() => {
+		setThemeMounted(true);
+	}, []);
 
 	useEffect(() => {
 		const supabase = createClient();
@@ -51,10 +59,20 @@ export function AppNav() {
 
 	return (
 		<header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-			<div className="mx-auto flex h-14 max-w-7xl items-center gap-6 px-4 sm:px-6">
-				<Link href="/" className="flex items-center gap-2 font-semibold">
-					<Plus className="h-5 w-5 rounded-full bg-primary p-0.5 text-primary-foreground" />
-					{APP_NAME}
+			<div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-4 sm:px-6">
+				<Link
+					href="/"
+					className="flex shrink-0 flex-col items-start justify-center gap-0 py-0 leading-none"
+				>
+					<AppLogo className="block h-11 w-auto max-w-[min(268px,calc(100vw-12rem))] object-left sm:h-12 sm:max-w-[min(300px,calc(100vw-12rem))]" />
+					<span
+						className="-mt-2.5 self-stretch text-left text-[10px] font-medium leading-none tracking-tight text-muted-foreground"
+						style={{
+							paddingLeft: `${LOGO_SUBTITLE_INSET_PERCENT}%`,
+						}}
+					>
+						{PRODUCT_NAME}
+					</span>
 				</Link>
 
 				<nav className="flex items-center gap-1">
@@ -83,6 +101,28 @@ export function AppNav() {
 							{userEmail}
 						</span>
 					)}
+					<Button
+						type="button"
+						variant="ghost"
+						size="icon"
+						className="rounded-full"
+						onClick={() =>
+							setTheme(resolvedTheme === "dark" ? "light" : "dark")
+						}
+						aria-label={
+							!themeMounted
+								? "Toggle color theme"
+								: resolvedTheme === "dark"
+									? "Switch to light mode"
+									: "Switch to dark mode"
+						}
+					>
+						{themeMounted && resolvedTheme === "dark" ? (
+							<Sun className="size-4" />
+						) : (
+							<Moon className="size-4" />
+						)}
+					</Button>
 					<DropdownMenu>
 						<DropdownMenuTrigger className="rounded-full">
 							<Avatar className="h-8 w-8">

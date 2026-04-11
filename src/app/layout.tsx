@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { APP_DESCRIPTION, APP_NAME } from "@/lib/brand";
@@ -21,12 +22,21 @@ export default function RootLayout({
 	children: React.ReactNode;
 }>) {
 	return (
-		<html lang="en" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
-			<body className="min-h-full bg-background font-sans text-foreground" suppressHydrationWarning>
-				<TooltipProvider>
-					{children}
-					<Toaster />
-				</TooltipProvider>
+		<html
+			lang="en"
+			className={`${inter.variable} h-full antialiased`}
+			suppressHydrationWarning
+		>
+			<body
+				className="min-h-full bg-background font-sans text-foreground"
+				suppressHydrationWarning
+			>
+				<ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+					<TooltipProvider>
+						{children}
+						<Toaster />
+					</TooltipProvider>
+				</ThemeProvider>
 			</body>
 		</html>
 	);

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { CaseReviewClient } from "./case-review-client";
 
@@ -47,22 +48,23 @@ export default async function CaseReviewPage({
 				total
 			: 0;
 
-	const extractionDate =
-		fields.length > 0 ? fields[0].extractedAt : null;
+	const extractionDate = fields.length > 0 ? fields[0].extractedAt : null;
 
 	return (
-		<CaseReviewClient
-			caseId={id}
-			caseStatus={caseData.status}
-			documents={documents}
-			extraction={
-				(caseData.finalFormData ?? caseData.rawExtraction) as Record<
-					string,
-					unknown
-				> | null
-			}
-			aggregateConfidence={aggregateConfidence}
-			extractionDate={extractionDate}
-		/>
+		<Suspense>
+			<CaseReviewClient
+				caseId={id}
+				caseStatus={caseData.status}
+				documents={documents}
+				extraction={
+					(caseData.finalFormData ?? caseData.rawExtraction) as Record<
+						string,
+						unknown
+					> | null
+				}
+				aggregateConfidence={aggregateConfidence}
+				extractionDate={extractionDate}
+			/>
+		</Suspense>
 	);
 }

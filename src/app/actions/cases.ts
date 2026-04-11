@@ -77,3 +77,92 @@ export async function updateCaseStatus(caseId: string, status: string) {
 	revalidatePath("/");
 	revalidatePath(`/case/${caseId}`);
 }
+
+export async function deleteDocument(documentId: string) {
+	const supabase = await createClient();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+
+	if (!user) throw new Error("Not authenticated");
+
+	const doc = await prisma.document.findUnique({
+		where: { id: documentId },
+		include: { case: { select: { userId: true, id: true } } },
+	});
+
+	if (!doc || doc.case.userId !== user.id) {
+		throw new Error("Document not found");
+	}
+
+	const { error } = await supabase.storage
+		.from("documents")
+		.remove([doc.storagePath]);
+	if (error) {
+		console.error("Storage delete failed:", error.message);
+	}
+
+	await prisma.document.delete({ where: { id: documentId } });
+
+	revalidatePath("/");
+	revalidatePath(`/case/${doc.case.id}`);
+}
+
+export async function deleteCases(caseIds: string[]) {
+	if (caseIds.length === 0) return;
+
+	const supabase = await createClient();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+
+	if (!user) throw new Error("Not authenticated");
+
+	const cases = await prisma.case.findMany({
+		where: { id: { in: caseIds }, userId: user.id },
+		include: { documents: { select: { storagePath: true } } },
+	});
+
+	const paths = cases.flatMap((c) => c.documents.map((d) => d.storagePath));
+	if (paths.length > 0) {
+		const { error } = await supabase.storage.from("documents").remove(paths);
+		if (error) {
+			console.error("Bulk storage cleanup failed:", error.message);
+		}
+	}
+
+	await prisma.case.deleteMany({
+		where: { id: { in: cases.map((c) => c.id) } },
+	});
+
+	revalidatePath("/");
+}
+
+export async function deleteCase(caseId: string) {
+	const supabase = await createClient();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+
+	if (!user) throw new Error("Not authenticated");
+
+	const existing = await prisma.case.findFirst({
+		where: { id: caseId, userId: user.id },
+		include: { documents: true },
+	});
+
+	if (!existing) throw new Error("Case not found");
+
+	const paths = existing.documents.map((d) => d.storagePath);
+	if (paths.length > 0) {
+		const { error } = await supabase.storage.from("documents").remove(paths);
+		if (error) {
+			console.error("Storage cleanup failed:", error.message);
+		}
+	}
+
+	await prisma.case.delete({ where: { id: caseId } });
+
+	revalidatePath("/");
+	revalidatePath(`/case/${caseId}`);
+}

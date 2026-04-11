@@ -66,58 +66,57 @@ export default function PdfPreviewPage() {
 	}
 
 	return (
-		<div>
-			<div className="mb-4 flex items-center gap-3">
-				<div>
-					<p className="text-sm text-muted-foreground">
-						PDF Preview /{" "}
-						<span className="font-medium">Case #{caseId.slice(0, 8)}</span>
+		<div className="flex h-[calc(100vh-5rem)] flex-col">
+			<div className="mb-2 flex shrink-0 flex-wrap items-center justify-between gap-2">
+				<div className="min-w-0">
+					<p className="text-xs text-muted-foreground">
+						Case Review /{" "}
+						<span className="font-medium">#{caseId.slice(0, 8)}</span> / PDF
 					</p>
-					<h1 className="text-3xl font-bold tracking-tight">PDF Preview</h1>
+					<h1 className="text-xl font-bold tracking-tight">Generated PDF</h1>
+				</div>
+				<div className="flex items-center gap-1.5">
+					<Link href={`/case/${caseId}`}>
+						<Button variant="outline" size="xs">
+							<ArrowLeft className="mr-1.5 h-3 w-3" />
+							Back to Case
+						</Button>
+					</Link>
+					<Button
+						variant="outline"
+						size="xs"
+						onClick={handleDownload}
+						disabled={!pdfUrl}
+					>
+						<Download className="mr-1.5 h-3 w-3" />
+						Download
+					</Button>
+					<Button
+						variant="outline"
+						size="xs"
+						onClick={handlePrint}
+						disabled={!pdfUrl}
+					>
+						<Printer className="mr-1.5 h-3 w-3" />
+						Print
+					</Button>
+					<Button variant="outline" size="xs" onClick={generatePdf}>
+						<RefreshCw className="mr-1.5 h-3 w-3" />
+						Regenerate
+					</Button>
 				</div>
 			</div>
 
-			<div className="mb-4 flex items-center gap-2">
-				<Link href={`/case/${caseId}`}>
-					<Button variant="outline" size="sm">
-						<ArrowLeft className="mr-2 h-4 w-4" />
-						Back to Case
-					</Button>
-				</Link>
-				<Button
-					variant="outline"
-					size="sm"
-					onClick={handleDownload}
-					disabled={!pdfUrl}
-				>
-					<Download className="mr-2 h-4 w-4" />
-					Download PDF
-				</Button>
-				<Button
-					variant="outline"
-					size="sm"
-					onClick={handlePrint}
-					disabled={!pdfUrl}
-				>
-					<Printer className="mr-2 h-4 w-4" />
-					Print
-				</Button>
-				<Button variant="outline" size="sm" onClick={generatePdf}>
-					<RefreshCw className="mr-2 h-4 w-4" />
-					Regenerate
-				</Button>
-			</div>
-
-			<div className="rounded-lg border bg-muted/20">
+			<div className="min-h-0 flex-1 rounded-lg border bg-muted/20">
 				{isLoading ? (
-					<div className="flex h-[700px] items-center justify-center">
+					<div className="flex h-full items-center justify-center">
 						<div className="text-center">
 							<div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
 							<p className="text-sm text-muted-foreground">Generating PDF...</p>
 						</div>
 					</div>
 				) : error ? (
-					<div className="flex h-[700px] items-center justify-center">
+					<div className="flex h-full items-center justify-center">
 						<div className="text-center text-red-500">
 							<p className="font-medium">PDF Generation Failed</p>
 							<p className="text-sm">{error}</p>
@@ -134,8 +133,8 @@ export default function PdfPreviewPage() {
 				) : pdfUrl ? (
 					<iframe
 						src={pdfUrl}
-						className="h-[700px] w-full rounded-lg"
-						title="PDF Preview"
+						className="h-full w-full rounded-lg"
+						title="Generated PDF"
 					/>
 				) : null}
 			</div>

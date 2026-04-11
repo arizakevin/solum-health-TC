@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { runCaseExtraction } from "@/lib/extraction/run-case-extraction";
 import { prisma } from "@/lib/prisma";
 import type { ServiceRequestExtraction } from "@/lib/types/service-request";
 
@@ -65,20 +66,21 @@ export async function approveAndGeneratePdf(
 }
 
 export async function triggerExtraction(caseId: string) {
-	const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-	const response = await fetch(`${baseUrl}/api/extract`, {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ caseId }),
-	});
+	const result = await runCaseExtraction(caseId);
 
-	if (!response.ok) {
-		const error = await response.json();
-		throw new Error(error.error ?? "Extraction failed");
+	if (!result.ok) {
+		const msg = result.details
+			? `${result.error}: ${result.details}`
+			: result.error;
+		throw new Error(msg);
 	}
 
 	revalidatePath(`/case/${caseId}`);
 	revalidatePath("/");
 
-	return response.json();
+	return {
+		success: true as const,
+		fieldCount: result.fieldCount,
+		extraction: result.extraction,
+	};
 }

@@ -1,5 +1,6 @@
 import { Plus } from "lucide-react";
-import Link from "next/link";
+import { redirect } from "next/navigation";
+import { createCase } from "@/app/actions/cases";
 import { CaseListTable } from "@/components/case-list-table";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
@@ -42,18 +43,23 @@ export default async function DashboardPage() {
 		<div>
 			<div className="mb-6 flex items-center justify-between">
 				<div>
-					<p className="text-sm text-muted-foreground">
-						Dashboard / <span className="font-medium">Case List</span>
-					</p>
 					<h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-					<p className="text-muted-foreground">Your service request cases</p>
+					<p className="text-muted-foreground">
+						Your prior authorization cases
+					</p>
 				</div>
-				<Link href="/upload">
-					<Button>
+				<form
+					action={async () => {
+						"use server";
+						const id = await createCase();
+						redirect(`/case/${id}`);
+					}}
+				>
+					<Button type="submit">
 						<Plus className="mr-2 h-4 w-4" />
 						New Case
 					</Button>
-				</Link>
+				</form>
 			</div>
 
 			<CaseListTable cases={cases} />

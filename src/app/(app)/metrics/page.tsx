@@ -8,12 +8,6 @@ async function getMetrics() {
 		const totalCases = await prisma.case.count();
 		const docsProcessed = await prisma.document.count();
 		const allFields = await prisma.extractionField.findMany();
-		const correctedFields = await prisma.extractionField.findMany({
-			where: { wasCorrected: true },
-			include: { case: true },
-			orderBy: { extractedAt: "desc" },
-			take: 20,
-		});
 
 		const total = allFields.length;
 		const correctedCount = allFields.filter(
@@ -41,22 +35,12 @@ async function getMetrics() {
 			}
 		}
 
-		const recentCorrections = correctedFields.map((f: (typeof correctedFields)[number]) => ({
-			caseId: f.caseId,
-			field: f.fieldName,
-			originalValue: f.autoValue ?? "",
-			correctedValue: f.finalValue ?? "",
-			section: f.section,
-			date: f.extractedAt,
-		}));
-
 		return {
 			totalCases,
 			avgConfidence,
 			fieldsCorrected: { count: correctedCount, total },
 			docsProcessed,
 			correctionsBySection: sectionMap,
-			recentCorrections,
 		};
 	} catch {
 		return {
@@ -65,7 +49,6 @@ async function getMetrics() {
 			fieldsCorrected: { count: 0, total: 0 },
 			docsProcessed: 0,
 			correctionsBySection: {},
-			recentCorrections: [],
 		};
 	}
 }
@@ -75,7 +58,6 @@ export default async function MetricsPage() {
 
 	return (
 		<div>
-			<p className="text-sm text-muted-foreground">Extraction Metrics</p>
 			<h1 className="text-3xl font-bold tracking-tight">Metrics</h1>
 			<p className="mb-6 text-muted-foreground">
 				Extraction accuracy and correction tracking
