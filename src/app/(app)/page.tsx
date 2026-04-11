@@ -15,7 +15,7 @@ async function getCases() {
 			},
 		});
 
-		return cases.map((c) => {
+		return cases.map((c: (typeof cases)[number]) => {
 			const formData = c.finalFormData as Record<string, unknown> | null;
 			const sectionA = formData?.sectionA as
 				| Record<string, { value?: string }>

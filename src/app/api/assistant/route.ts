@@ -40,9 +40,9 @@ export async function POST(request: Request) {
 				const formData = caseData.finalFormData ?? caseData.rawExtraction;
 				caseContext = `\n\nCurrent case context (ID: ${caseId.slice(0, 8)}):
 - Status: ${caseData.status}
-- Documents: ${caseData.documents.map((d) => d.filename).join(", ") || "None"}
+- Documents: ${caseData.documents.map((d: { filename: string }) => d.filename).join(", ") || "None"}
 - Extracted fields: ${caseData.extractionFields.length}
-- Fields with corrections: ${caseData.extractionFields.filter((f) => f.wasCorrected).length}
+- Fields with corrections: ${caseData.extractionFields.filter((f: { wasCorrected: boolean }) => f.wasCorrected).length}
 ${formData ? `- Form data preview: ${JSON.stringify(formData).slice(0, 500)}...` : ""}`;
 			}
 		}
