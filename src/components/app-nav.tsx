@@ -3,6 +3,7 @@
 import { LogOut, Plus, User } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
 	DropdownMenu,
@@ -22,6 +23,25 @@ const NAV_LINKS = [
 export function AppNav() {
 	const pathname = usePathname();
 	const router = useRouter();
+	const [userEmail, setUserEmail] = useState<string | null>(null);
+	const [initials, setInitials] = useState("U");
+
+	useEffect(() => {
+		const supabase = createClient();
+		supabase.auth.getUser().then(({ data: { user } }) => {
+			if (user) {
+				setUserEmail(user.email ?? null);
+				const name =
+					(user.user_metadata?.full_name as string) ?? user.email ?? "";
+				const parts = name.split(/\s+/);
+				setInitials(
+					parts.length >= 2
+						? `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+						: name.slice(0, 2).toUpperCase(),
+				);
+			}
+		});
+	}, []);
 
 	async function handleSignOut() {
 		const supabase = createClient();
@@ -57,13 +77,16 @@ export function AppNav() {
 					})}
 				</nav>
 
-				<div className="ml-auto">
+				<div className="ml-auto flex items-center gap-2">
+					{userEmail && (
+						<span className="hidden text-xs text-muted-foreground sm:inline">
+							{userEmail}
+						</span>
+					)}
 					<DropdownMenu>
 						<DropdownMenuTrigger className="rounded-full">
 							<Avatar className="h-8 w-8">
-								<AvatarFallback>
-									<User className="h-4 w-4" />
-								</AvatarFallback>
+								<AvatarFallback className="text-xs">{initials}</AvatarFallback>
 							</Avatar>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end">
