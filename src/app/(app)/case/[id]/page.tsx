@@ -1,3 +1,9 @@
+import { notFound } from "next/navigation";
+import { prisma } from "@/lib/prisma";
+import { CaseReviewClient } from "./case-review-client";
+
+export const dynamic = "force-dynamic";
+
 export default async function CaseReviewPage({
 	params,
 }: {
@@ -5,21 +11,57 @@ export default async function CaseReviewPage({
 }) {
 	const { id } = await params;
 
-	return (
-		<div>
-			<p className="text-sm text-muted-foreground">
-				Case Review / <span className="font-medium">#{id}</span>
-			</p>
-			<h1 className="text-3xl font-bold tracking-tight">Case Review</h1>
+	const caseData = await prisma.case
+		.findUnique({
+			where: { id },
+			include: {
+				documents: { orderBy: { uploadedAt: "asc" } },
+				extractionFields: true,
+			},
+		})
+		.catch(() => null);
 
-			<div className="mt-6 grid gap-6 lg:grid-cols-2">
-				<div className="flex h-96 items-center justify-center rounded-lg border text-muted-foreground">
-					Source Documents Panel — Phase 2d
-				</div>
-				<div className="flex h-96 items-center justify-center rounded-lg border text-muted-foreground">
-					Service Request Form — Phase 2d
-				</div>
-			</div>
-		</div>
+	if (!caseData) notFound();
+
+	const documents = caseData.documents.map((d) => ({
+		id: d.id,
+		filename: d.filename,
+		contentType: d.contentType,
+		pageCount: d.pageCount,
+		uploadedAt: d.uploadedAt,
+	}));
+
+	const highCount = caseData.extractionFields.filter(
+		(f) => f.confidence === "high",
+	).length;
+	const medCount = caseData.extractionFields.filter(
+		(f) => f.confidence === "medium",
+	).length;
+	const total = caseData.extractionFields.length;
+	const aggregateConfidence =
+		total > 0
+			? (highCount * 95 + medCount * 78 + (total - highCount - medCount) * 45) /
+				total
+			: 0;
+
+	const extractionDate =
+		caseData.extractionFields.length > 0
+			? caseData.extractionFields[0].extractedAt
+			: null;
+
+	return (
+		<CaseReviewClient
+			caseId={id}
+			caseStatus={caseData.status}
+			documents={documents}
+			extraction={
+				(caseData.finalFormData ?? caseData.rawExtraction) as Record<
+					string,
+					unknown
+				> | null
+			}
+			aggregateConfidence={aggregateConfidence}
+			extractionDate={extractionDate}
+		/>
 	);
 }

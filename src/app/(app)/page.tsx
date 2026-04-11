@@ -1,8 +1,43 @@
 import { Plus } from "lucide-react";
 import Link from "next/link";
+import { CaseListTable } from "@/components/case-list-table";
 import { Button } from "@/components/ui/button";
+import { prisma } from "@/lib/prisma";
 
-export default function DashboardPage() {
+export const dynamic = "force-dynamic";
+
+async function getCases() {
+	try {
+		const cases = await prisma.case.findMany({
+			orderBy: { createdAt: "desc" },
+			include: {
+				_count: { select: { documents: true } },
+			},
+		});
+
+		return cases.map((c) => {
+			const formData = c.finalFormData as Record<string, unknown> | null;
+			const sectionA = formData?.sectionA as
+				| Record<string, { value?: string }>
+				| undefined;
+			const patientName = sectionA?.name?.value ?? null;
+
+			return {
+				id: c.id,
+				patientName,
+				status: c.status,
+				documentCount: c._count.documents,
+				createdAt: c.createdAt,
+			};
+		});
+	} catch {
+		return [];
+	}
+}
+
+export default async function DashboardPage() {
+	const cases = await getCases();
+
 	return (
 		<div>
 			<div className="mb-6 flex items-center justify-between">
@@ -21,11 +56,7 @@ export default function DashboardPage() {
 				</Link>
 			</div>
 
-			<div className="rounded-lg border">
-				<div className="p-8 text-center text-muted-foreground">
-					No cases yet. Create your first case to get started.
-				</div>
-			</div>
+			<CaseListTable cases={cases} />
 		</div>
 	);
 }
