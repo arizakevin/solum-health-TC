@@ -1,0 +1,65 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email     String   @unique
+  fullName  String?  @map("full_name")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  cases Case[]
+
+  @@map("users")
+}
+
+model Case {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  status          String   @default("Draft")
+  rawExtraction   Json?    @map("raw_extraction")
+  finalFormData   Json?    @map("final_form_data")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents        Document[]
+  extractionFields ExtractionField[]
+
+  @@map("cases")
+}
+
+model Document {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId      String   @map("case_id") @db.Uuid
+  filename    String
+  storagePath String   @map("storage_path")
+  contentType String   @map("content_type")
+  textContent String?  @map("text_content")
+  pageCount   Int?     @map("page_count")
+  uploadedAt  DateTime @default(now()) @map("uploaded_at")
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@map("documents")
+}
+
+model ExtractionField {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId       String   @map("case_id") @db.Uuid
+  section      String
+  fieldName    String   @map("field_name")
+  autoValue    String?  @map("auto_value")
+  finalValue   String?  @map("final_value")
+  confidence   String   @default("low")
+  wasCorrected Boolean  @default(false) @map("was_corrected")
+  extractedAt  DateTime @default(now()) @map("extracted_at")
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@map("extraction_fields")
+}
