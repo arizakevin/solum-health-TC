@@ -5,24 +5,27 @@ export const dynamic = "force-dynamic";
 
 async function getMetrics() {
 	try {
-		const [totalCases, docsProcessed, allFields, correctedFields] =
-			await Promise.all([
-				prisma.case.count(),
-				prisma.document.count(),
-				prisma.extractionField.findMany(),
-				prisma.extractionField.findMany({
-					where: { wasCorrected: true },
-					include: { case: true },
-					orderBy: { extractedAt: "desc" },
-					take: 20,
-				}),
-			]);
+		const totalCases = await prisma.case.count();
+		const docsProcessed = await prisma.document.count();
+		const allFields = await prisma.extractionField.findMany();
+		const correctedFields = await prisma.extractionField.findMany({
+			where: { wasCorrected: true },
+			include: { case: true },
+			orderBy: { extractedAt: "desc" },
+			take: 20,
+		});
 
 		const total = allFields.length;
-		const correctedCount = allFields.filter((f) => f.wasCorrected).length;
+		const correctedCount = allFields.filter(
+			(f: (typeof allFields)[number]) => f.wasCorrected,
+		).length;
 
-		const highCount = allFields.filter((f) => f.confidence === "high").length;
-		const medCount = allFields.filter((f) => f.confidence === "medium").length;
+		const highCount = allFields.filter(
+			(f: (typeof allFields)[number]) => f.confidence === "high",
+		).length;
+		const medCount = allFields.filter(
+			(f: (typeof allFields)[number]) => f.confidence === "medium",
+		).length;
 		const lowCount = total - highCount - medCount;
 		const avgConfidence =
 			total > 0 ? (highCount * 95 + medCount * 78 + lowCount * 45) / total : 0;
@@ -38,7 +41,7 @@ async function getMetrics() {
 			}
 		}
 
-		const recentCorrections = correctedFields.map((f) => ({
+		const recentCorrections = correctedFields.map((f: (typeof correctedFields)[number]) => ({
 			caseId: f.caseId,
 			field: f.fieldName,
 			originalValue: f.autoValue ?? "",
