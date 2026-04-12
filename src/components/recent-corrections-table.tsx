@@ -107,22 +107,24 @@ export function RecentCorrectionsTable() {
 
 	return (
 		<div>
-			<div className={isLoading ? "pointer-events-none opacity-60" : ""}>
+			<div
+				className={`overflow-x-auto ${isLoading ? "pointer-events-none opacity-60" : ""}`}
+			>
 				<Table>
 					<TableHeader>
 						<TableRow>
-							<TableHead>Case</TableHead>
+							<TableHead className="hidden md:table-cell">Case</TableHead>
 							<TableHead>Field</TableHead>
 							<TableHead>Original</TableHead>
 							<TableHead>Corrected</TableHead>
-							<TableHead>Section</TableHead>
-							<TableHead>Date</TableHead>
+							<TableHead className="hidden sm:table-cell">Section</TableHead>
+							<TableHead className="hidden md:table-cell">Date</TableHead>
 						</TableRow>
 					</TableHeader>
 					<TableBody>
 						{rows.map((c: CorrectionRow, i: number) => (
 							<TableRow key={`${c.caseId}-${c.field}-${i}`}>
-								<TableCell className="font-mono text-xs">
+								<TableCell className="hidden font-mono text-xs md:table-cell">
 									#{c.caseId.slice(0, 8)}
 								</TableCell>
 								<TableCell className="text-sm">
@@ -134,12 +136,12 @@ export function RecentCorrectionsTable() {
 								<TableCell className="max-w-[120px] truncate text-xs">
 									{c.correctedValue}
 								</TableCell>
-								<TableCell>
+								<TableCell className="hidden sm:table-cell">
 									<Badge variant="secondary" className="text-xs">
 										{SECTION_NAMES[c.section] ?? c.section}
 									</Badge>
 								</TableCell>
-								<TableCell className="text-xs text-muted-foreground">
+								<TableCell className="hidden text-xs text-muted-foreground md:table-cell">
 									{new Date(c.date).toLocaleDateString("en-US", {
 										month: "short",
 										day: "numeric",

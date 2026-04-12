@@ -137,7 +137,7 @@ export function AnnieChatDrawer() {
 			<SheetContent
 				side="right"
 				showCloseButton={false}
-				className="flex h-full max-h-dvh min-h-0 w-[400px] flex-col gap-0 overflow-hidden p-0 sm:w-[440px]"
+				className="!w-full flex h-full max-h-dvh min-h-0 flex-col gap-0 overflow-hidden p-0 sm:!w-[400px] sm:!max-w-[calc(100vw-2rem)]"
 			>
 				<SheetHeader className="shrink-0 space-y-0 border-b p-0">
 					<div className="flex items-start gap-3 px-4 py-3">
@@ -202,17 +202,18 @@ export function AnnieChatDrawer() {
 				</div>
 
 				<form onSubmit={handleSubmit} className="shrink-0 border-t px-4 py-3">
-					<div className="flex gap-2">
+					<div className="flex items-center gap-2">
 						<Input
 							value={input}
 							onChange={(e) => setInput(e.target.value)}
 							placeholder="Ask Annie..."
 							disabled={isLoading}
-							className="h-9 text-sm"
+							className="h-9 min-w-0 flex-1 text-sm"
 						/>
 						<Button
 							type="submit"
 							size="icon"
+							className="h-9 w-9 shrink-0"
 							disabled={isLoading || !input.trim()}
 						>
 							<Send className="h-4 w-4" />

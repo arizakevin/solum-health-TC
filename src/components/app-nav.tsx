@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, Moon, Sun } from "lucide-react";
+import { LogOut, Menu, Moon, Sun } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -12,6 +12,7 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
+	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LOGO_SUBTITLE_INSET_PERCENT, PRODUCT_NAME } from "@/lib/brand";
@@ -75,7 +76,7 @@ export function AppNav() {
 					</span>
 				</Link>
 
-				<nav className="flex items-center gap-1">
+				<nav className="hidden items-center gap-1 md:flex">
 					{NAV_LINKS.map(({ href, label }) => {
 						const isActive =
 							href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -123,8 +124,34 @@ export function AppNav() {
 							<Moon className="size-4" />
 						)}
 					</Button>
+
+					{/* Mobile hamburger (below md) */}
 					<DropdownMenu>
-						<DropdownMenuTrigger className="rounded-full">
+						<DropdownMenuTrigger
+							className="rounded-full md:hidden"
+							aria-label="Navigation menu"
+						>
+							<div className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-accent">
+								<Menu className="h-4 w-4" />
+							</div>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end">
+							{NAV_LINKS.map(({ href, label }) => (
+								<DropdownMenuItem key={href} onClick={() => router.push(href)}>
+									{label}
+								</DropdownMenuItem>
+							))}
+							<DropdownMenuSeparator />
+							<DropdownMenuItem onClick={handleSignOut}>
+								<LogOut className="mr-2 h-4 w-4" />
+								Sign Out
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+
+					{/* Desktop avatar menu (md+) */}
+					<DropdownMenu>
+						<DropdownMenuTrigger className="hidden rounded-full md:inline-flex">
 							<Avatar className="h-8 w-8">
 								<AvatarFallback className="text-xs">{initials}</AvatarFallback>
 							</Avatar>

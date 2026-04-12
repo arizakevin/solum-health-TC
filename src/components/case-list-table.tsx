@@ -121,7 +121,7 @@ export function CaseListTable({ cases }: { cases: CaseRow[] }) {
 				</div>
 			)}
 
-			<div className="rounded-lg border">
+			<div className="rounded-lg border overflow-x-auto">
 				<Table>
 					<TableHeader>
 						<TableRow>
@@ -134,11 +134,11 @@ export function CaseListTable({ cases }: { cases: CaseRow[] }) {
 									aria-label="Select all cases"
 								/>
 							</TableHead>
-							<TableHead>Case ID</TableHead>
+							<TableHead className="hidden md:table-cell">Case ID</TableHead>
 							<TableHead>Patient Name</TableHead>
 							<TableHead>Status</TableHead>
 							<TableHead>Documents</TableHead>
-							<TableHead>Created</TableHead>
+							<TableHead className="hidden md:table-cell">Created</TableHead>
 							<TableHead>Actions</TableHead>
 						</TableRow>
 					</TableHeader>
@@ -157,7 +157,7 @@ export function CaseListTable({ cases }: { cases: CaseRow[] }) {
 										aria-label={`Select case #${c.id.slice(0, 8)}`}
 									/>
 								</TableCell>
-								<TableCell className="font-mono text-xs">
+								<TableCell className="hidden font-mono text-xs md:table-cell">
 									#{c.id.slice(0, 8)}
 								</TableCell>
 								<TableCell>{c.patientName ?? "—"}</TableCell>
@@ -167,7 +167,7 @@ export function CaseListTable({ cases }: { cases: CaseRow[] }) {
 								<TableCell>
 									{c.documentCount} doc{c.documentCount !== 1 ? "s" : ""}
 								</TableCell>
-								<TableCell>
+								<TableCell className="hidden md:table-cell">
 									{c.createdAt.toLocaleDateString("en-US", {
 										month: "short",
 										day: "numeric",

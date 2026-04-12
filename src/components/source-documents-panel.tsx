@@ -343,7 +343,7 @@ export function SourceDocumentsPanel({
 			)}
 
 			{/* Footer */}
-			<div className="flex items-center justify-between border-t px-3 py-2 text-xs text-muted-foreground">
+			<div className="flex flex-wrap items-center justify-between gap-2 border-t px-3 py-2 text-xs text-muted-foreground">
 				<TooltipProvider delay={300}>
 					<div className="flex flex-wrap items-center gap-2">
 						{extractionDate && (

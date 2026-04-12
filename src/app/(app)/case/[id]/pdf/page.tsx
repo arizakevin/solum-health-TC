@@ -75,11 +75,12 @@ export default function PdfPreviewPage() {
 					</p>
 					<h1 className="text-xl font-bold tracking-tight">Generated PDF</h1>
 				</div>
-				<div className="flex items-center gap-1.5">
+				<div className="flex flex-wrap items-center gap-1.5">
 					<Link href={`/case/${caseId}`}>
 						<Button variant="outline" size="xs">
 							<ArrowLeft className="mr-1.5 h-3 w-3" />
-							Back to Case
+							<span className="hidden sm:inline">Back to Case</span>
+							<span className="sm:hidden">Back</span>
 						</Button>
 					</Link>
 					<Button
@@ -89,7 +90,7 @@ export default function PdfPreviewPage() {
 						disabled={!pdfUrl}
 					>
 						<Download className="mr-1.5 h-3 w-3" />
-						Download
+						<span className="hidden sm:inline">Download</span>
 					</Button>
 					<Button
 						variant="outline"
@@ -98,11 +99,11 @@ export default function PdfPreviewPage() {
 						disabled={!pdfUrl}
 					>
 						<Printer className="mr-1.5 h-3 w-3" />
-						Print
+						<span className="hidden sm:inline">Print</span>
 					</Button>
 					<Button variant="outline" size="xs" onClick={generatePdf}>
 						<RefreshCw className="mr-1.5 h-3 w-3" />
-						Regenerate
+						<span className="hidden sm:inline">Regenerate</span>
 					</Button>
 				</div>
 			</div>

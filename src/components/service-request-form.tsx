@@ -190,12 +190,21 @@ export function ServiceRequestForm({
 				</Accordion>
 			</div>
 
-			<div className="flex shrink-0 justify-end gap-2 border-t pt-4">
-				<Button variant="outline" onClick={handleSave} disabled={isSaving}>
+			<div className="flex shrink-0 flex-col gap-2 border-t pt-4 sm:flex-row sm:justify-end">
+				<Button
+					variant="outline"
+					onClick={handleSave}
+					disabled={isSaving}
+					className="w-full sm:w-auto"
+				>
 					<Save className="mr-2 h-4 w-4" />
 					{isSaving ? "Saving..." : "Save Draft"}
 				</Button>
-				<Button onClick={handleApprove} disabled={isApproving}>
+				<Button
+					onClick={handleApprove}
+					disabled={isApproving}
+					className="w-full sm:w-auto"
+				>
 					<FileCheck className="mr-2 h-4 w-4" />
 					{isApproving ? "Generating..." : "Approve & Generate PDF →"}
 				</Button>

@@ -6,7 +6,7 @@ An AI-powered healthcare document extraction system that automates service reque
 
 - **Vercel**: [solum-health-tc.vercel.app](https://solum-health-tc.vercel.app)
 - **Loom Walkthrough**: _[Recording URL — to be added]_
-- **Trello Board**: _[Board URL — to be added]_
+- **Trello Board**: [Technical Challenge — Solum Health](https://trello.com/invite/b/69d978996fb55e181132780b/ATTIed3ccf2d39b44f624b89ab0eade3690332F5709B/technical-challenge-solum-health)
 
 ## Features
 

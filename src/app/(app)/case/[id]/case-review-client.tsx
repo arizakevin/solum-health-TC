@@ -110,11 +110,10 @@ export function CaseReviewClient({
 			<div className="mb-4 flex flex-wrap items-start justify-between gap-3">
 				<div className="flex min-w-0 flex-wrap items-center gap-3">
 					<div>
-						<p className="text-sm text-muted-foreground">
-							Case Review /{" "}
-							<span className="font-medium">#{caseId.slice(0, 8)}</span>
-						</p>
-						<h1 className="text-3xl font-bold tracking-tight">Case Review</h1>
+						<p className="text-xs text-muted-foreground">Case Review</p>
+						<h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+							#{caseId.slice(0, 8)}
+						</h1>
 					</div>
 					<Badge variant="secondary">{caseStatus}</Badge>
 				</div>
@@ -127,7 +126,7 @@ export function CaseReviewClient({
 			</div>
 
 			<div className="grid gap-6 lg:grid-cols-[1fr_1.2fr] lg:items-stretch">
-				<div className="flex min-h-[500px] flex-col gap-3 lg:h-full">
+				<div className="flex min-h-[300px] flex-col gap-3 sm:min-h-[500px] lg:h-full">
 					<div className="flex min-h-0 flex-1 flex-col">
 						<SourceDocumentsPanel
 							caseId={caseId}
@@ -149,7 +148,7 @@ export function CaseReviewClient({
 					/>
 				</div>
 
-				<div className="flex min-h-[500px] flex-col lg:h-full">
+				<div className="flex min-h-[300px] flex-col sm:min-h-[500px] lg:h-full">
 					<div className="flex min-h-0 flex-1 flex-col">
 						{hasExtraction ? (
 							<ServiceRequestForm
