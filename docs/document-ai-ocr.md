@@ -53,26 +53,41 @@ See current rates: [Google Cloud Document AI pricing](https://cloud.google.com/d
    - Choose **Document OCR** (sometimes labeled **OCR**).
    - Select the **region** you want (for example **United States** or **European Union**), then create.
    - Open the processor details and copy **Processor ID** and the **location** string the console shows (use that exact value in `GOOGLE_CLOUD_LOCATION`).
-4. Create a **service account** (IAM & Admin > **Service accounts** > **Create**), grant **Document AI API User** (`roles/documentai.user`), then **Keys** > **Add key** > **Create new key** > **JSON**. Store the file only under **`secrets/`** (gitignored).
+4. Create a **service account** (IAM & Admin > **Service accounts** > **Create**), grant **Document AI API User** (`roles/documentai.user`), then **Keys** > **Add key** > **Create new key** > **JSON**. Open the downloaded JSON and copy `client_email` and `private_key` into your `.env` (or Vercel env vars). Delete or secure the JSON file after.
 
-## Local configuration
+## Configuration
 
-1. Copy `.env.example` to `.env` or `.env.local` and set:
+Copy `.env.example` to `.env` or `.env.local` and set:
 
 | Variable | Description |
 |----------|-------------|
 | `GOOGLE_CLOUD_PROJECT_ID` | GCP project id. |
 | `GOOGLE_CLOUD_LOCATION` | Same region as the processor (e.g. `us`). |
 | `GOOGLE_DOCUMENT_AI_PROCESSOR_ID` | Processor id from the console. |
-| `GOOGLE_APPLICATION_CREDENTIALS` | Path to the JSON key, e.g. `./secrets/Your-Key.json`. |
+| `GCP_CLIENT_EMAIL` | `client_email` from the service account JSON. |
+| `GCP_PRIVATE_KEY` | `private_key` from the service account JSON (paste as-is including markers). |
 
-2. Never commit keys: the repo **`.gitignore`** includes **`secrets/`**.
+Extract `client_email` and `private_key` from your downloaded service account JSON. The app passes them directly to the `@google-cloud/documentai` client via `credentials` — no file path needed, works identically on local dev and Vercel.
+
+Never commit keys: the repo **`.gitignore`** includes **`secrets/`**.
 
 ## Authentication
 
-**Why a service account key (not an API key):** Document AI requires OAuth2-style credentials. The Node client (`@google-cloud/documentai`) reads **`GOOGLE_APPLICATION_CREDENTIALS`** and loads the JSON key file automatically.
+**Why a service account (not an API key):** Document AI requires OAuth2-style credentials. The `@google-cloud/documentai` client authenticates using `client_email` + `private_key` passed via the `credentials` constructor option.
 
 **Why `GOOGLE_CLOUD_LOCATION` must match the processor:** Each processor is created in a **region** (for example `us` or `eu`). API calls must use that same location.
+
+### Credential strategy decision
+
+We use **decomposed env vars** (`GCP_CLIENT_EMAIL` + `GCP_PRIVATE_KEY`) rather than a JSON key file. This avoids the `GOOGLE_APPLICATION_CREDENTIALS` file-path approach, which breaks on serverless platforms (Vercel, Lambda) where gitignored files don't exist on disk.
+
+Alternatives evaluated:
+
+| Approach | Verdict |
+|----------|---------|
+| **Decomposed env vars** (selected) | Simplest — 2 vars, one code path everywhere, `credentials` accepted natively by all `@google-cloud/*` clients. |
+| **Base64-encoded JSON** | Works but unnecessary complexity — decode step, larger env var, harder to rotate. |
+| **Workload Identity Federation (OIDC)** | Eliminates long-lived keys entirely. Recommended upgrade for production / HIPAA. Requires GCP Identity Pool setup — overkill for MVP. See [Vercel OIDC for GCP](https://vercel.com/docs/oidc/gcp). |
 
 ## Checkboxes, form layouts, and Form Parser
 
@@ -99,6 +114,5 @@ This is a targeted enhancement, not a blanket change. Most clinical notes, refer
 
 ## Security
 
-- Treat the JSON key like a password: restricted file permissions, no copies in tickets or chat, no commits.
-- Prefer **Workload Identity** or secret manager in production instead of a long-lived key file on disk.
-- **Vercel / serverless:** A file path in `GOOGLE_APPLICATION_CREDENTIALS` does not exist on the serverless filesystem. For production, either base64-encode the JSON into an env secret and write to `/tmp/` at cold start, or use Workload Identity if running on GCP.
+- Treat `GCP_PRIVATE_KEY` like a password: no copies in tickets or chat, no commits.
+- For production / HIPAA environments, upgrade to **Workload Identity Federation (OIDC)** to eliminate long-lived keys entirely — see the credential strategy section above.

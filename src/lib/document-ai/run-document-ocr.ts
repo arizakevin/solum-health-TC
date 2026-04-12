@@ -6,12 +6,12 @@ let _client: InstanceType<
 
 async function getClient() {
 	if (!_client) {
-		const { v1 } = await import("@google-cloud/documentai");
 		const settings = getDocumentAiSettings();
 		if (!settings) throw new Error("Document AI not configured");
 
+		const { v1 } = await import("@google-cloud/documentai");
 		_client = new v1.DocumentProcessorServiceClient({
-			keyFilename: settings.credentialsPath,
+			credentials: settings.credentials,
 		});
 	}
 	return _client;

@@ -150,3 +150,36 @@ _Results from running each sample PDF (01–06) through the production extractio
 - [`docs/extraction-confidence.md`](./extraction-confidence.md) — methodology, formula, provider limitations
 - [`docs/llm-model-decisions.md`](./llm-model-decisions.md) — model evaluations, pricing, decision history
 - [`docs/document-ai-ocr.md`](./document-ai-ocr.md) — OCR path and configuration
+
+---
+
+### Day 3 afternoon — Deployment verification, README overhaul, credential strategy
+
+**Time spent:** ~2 hours
+
+#### Vercel deployment verification
+
+- Connected to Vercel MCP: confirmed project `solum-health-tc` is live at [solum-health-tc.vercel.app](https://solum-health-tc.vercel.app), latest deployment `READY` (production, Turbopack, Next.js 16.2.3).
+- Verified zero runtime errors in the last 6 hours, build logs clean (Prisma 7.7 generates successfully).
+- All environment variables confirmed set in Vercel dashboard.
+
+#### README overhaul
+
+- Added live Vercel URL; removed placeholder links.
+- Fixed stale references: removed Google OAuth (email/password only), added RLS to security section, removed it from "If I Had More Time."
+- Rewrote environment variables into four tiers: **Required** (5 vars), **Recommended** (OpenAI confidence fallback), **Optional model overrides** (with defaults), **Optional Document AI OCR**.
+- Updated design decisions: Flash as primary model (not Flash-Lite), new entry for dual-provider confidence scoring with forum thread link, renumbered to 8 decisions.
+- Removed unused `NEXT_PUBLIC_SITE_URL` from code, `.env`, and `.env.example` (never referenced).
+
+#### GCP credential strategy (Document AI)
+
+- **Problem:** `GOOGLE_APPLICATION_CREDENTIALS` expects a file path — `secrets/` is gitignored, so the JSON key doesn't exist on Vercel's serverless filesystem. Document AI silently fell back to Gemini-native OCR.
+- **Evaluated:** decomposed env vars vs base64-encoded JSON vs Workload Identity Federation (OIDC).
+- **Selected:** decomposed `GCP_CLIENT_EMAIL` + `GCP_PRIVATE_KEY` — one code path everywhere (local and Vercel), no file system dependency, natively accepted by all `@google-cloud/*` client constructors. OIDC documented as the recommended upgrade for production/HIPAA.
+- Updated `config.ts` and `run-document-ocr.ts` to use `credentials` instead of `keyFilename`.
+- Updated `.env.example`, README, and `docs/document-ai-ocr.md` with the new approach and decision rationale.
+
+#### Key decisions
+
+- **One credential mode, not two** — same env vars work on local dev and Vercel; eliminates branching and reduces cognitive overhead.
+- **Unused env vars removed** — `NEXT_PUBLIC_SITE_URL` was never referenced in code; `GOOGLE_APPLICATION_CREDENTIALS` replaced by decomposed vars.

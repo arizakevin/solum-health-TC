@@ -4,7 +4,7 @@ An AI-powered healthcare document extraction system that automates service reque
 
 ## Live Demo
 
-- **Vercel**: _[Deploy URL — to be added after deployment]_
+- **Vercel**: [solum-health-tc.vercel.app](https://solum-health-tc.vercel.app)
 - **Loom Walkthrough**: _[Recording URL — to be added]_
 - **Trello Board**: _[Board URL — to be added]_
 
@@ -46,8 +46,9 @@ An AI-powered healthcare document extraction system that automates service reque
 - Recent corrections table
 
 ### Authentication & Security
-- Supabase Auth (email/password + Google OAuth)
+- Supabase Auth (email/password)
 - Middleware-based route protection
+- Row-Level Security (RLS) on all tables
 - Per-user data isolation
 
 ## Tech Stack
@@ -58,7 +59,7 @@ An AI-powered healthcare document extraction system that automates service reque
 | Language | TypeScript (strict) |
 | UI | Tailwind CSS v4, shadcn/ui (Radix + CVA) |
 | State | Zustand v5 with persist middleware |
-| Auth | Supabase Auth (email + Google OAuth) |
+| Auth | Supabase Auth (email/password) |
 | Database | Supabase Postgres + Prisma 7 ORM |
 | Storage | Supabase Storage |
 | AI | Google Gemini 3.x (`@google/genai` SDK) — see [`docs/llm-model-decisions.md`](docs/llm-model-decisions.md) |
@@ -149,26 +150,45 @@ npm run dev
 
 ### Supabase Setup
 1. Create a new Supabase project
-2. Enable Email and Google auth providers
+2. Enable Email auth provider
 3. Create a `documents` storage bucket (public: false)
 4. Copy the project URL and anon key to `.env.local`
 
 ### Environment Variables
 
+**Required** — the app will not start or function without these:
+
 | Variable | Description |
 |----------|-------------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
-| `DATABASE_URL` | Supabase Postgres connection string |
-| `GEMINI_API_KEY` | Google AI Studio API key |
-| `EXTRACTION_MODEL_ID` | Model for extraction (default: `gemini-3.1-flash-lite-preview`) — see [`docs/llm-model-decisions.md`](docs/llm-model-decisions.md) |
-| `ASSISTANT_MODEL_ID` | Model for Annie chat (default: `gemini-3-flash-preview`) — see [`docs/llm-model-decisions.md`](docs/llm-model-decisions.md) |
-| `NEXT_PUBLIC_SITE_URL` | Application URL for OAuth callbacks |
-| `GOOGLE_CLOUD_PROJECT_ID` | GCP project id (Document AI) |
-| `GOOGLE_CLOUD_LOCATION` | Processor region (must match processor) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase publishable key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server-side only) |
+| `DATABASE_URL` | Supabase Postgres connection string (use the pooled URL from Dashboard > Settings > Database) |
+| `GEMINI_API_KEY` | Google AI Studio API key — powers extraction + Annie chat |
+
+**Recommended** — extraction works without these, but confidence scoring will be `null`:
+
+| Variable | Description |
+|----------|-------------|
+| `OPENAI_API_KEY` | OpenAI key for logprobs confidence fallback — see [`docs/extraction-confidence.md`](docs/extraction-confidence.md) |
+| `CONFIDENCE_MODEL_ID` | Confidence fallback model (default: `gpt-4o-mini`) |
+
+**Optional model overrides** — sensible defaults are used when omitted:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `EXTRACTION_MODEL_ID` | `gemini-3-flash-preview` | Extraction model — see [`docs/llm-model-decisions.md`](docs/llm-model-decisions.md) |
+| `ASSISTANT_MODEL_ID` | `gemini-3-flash-preview` | Annie chat model |
+
+**Optional — Document AI OCR** — enables dedicated OCR for scanned/handwritten documents. Without these, Gemini handles OCR natively (still works, but less accurate on handwriting). See [`docs/document-ai-ocr.md`](docs/document-ai-ocr.md):
+
+| Variable | Description |
+|----------|-------------|
+| `GOOGLE_CLOUD_PROJECT_ID` | GCP project id |
+| `GOOGLE_CLOUD_LOCATION` | Processor region (e.g. `us`) |
 | `GOOGLE_DOCUMENT_AI_PROCESSOR_ID` | Document AI Document OCR processor id |
-| `GOOGLE_APPLICATION_CREDENTIALS` | Path to service account JSON (e.g. `./secrets/key.json`) |
+| `GCP_CLIENT_EMAIL` | `client_email` from your service account JSON |
+| `GCP_PRIVATE_KEY` | `private_key` from your service account JSON (paste as-is, including markers) |
 
 ## Design Decisions
 
@@ -176,22 +196,23 @@ npm run dev
 
 2. **Correction tracking at field level**: Each `ExtractionField` record stores both `autoValue` (original AI extraction) and `finalValue` (after human review), with a `wasCorrected` flag. This enables per-field and per-section accuracy metrics.
 
-3. **Three-layer OCR + extraction pipeline**: `pdfjs-dist` handles text-layer PDFs locally; **Cloud Document AI** provides dedicated OCR for scanned documents, handwriting, and images; **Gemini** receives the pre-extracted text plus the original file for structured form mapping. This separation lets the extraction model (Flash-Lite) focus on reasoning rather than pixel-level text recovery — see [`docs/document-ai-ocr.md`](docs/document-ai-ocr.md).
+3. **Three-layer OCR + extraction pipeline**: `pdfjs-dist` handles text-layer PDFs locally; **Cloud Document AI** provides dedicated OCR for scanned documents, handwriting, and images; **Gemini** receives the pre-extracted text plus the original file for structured form mapping. This separation lets the extraction model focus on reasoning rather than pixel-level text recovery — see [`docs/document-ai-ocr.md`](docs/document-ai-ocr.md).
 
-4. **Right-sized models per task**: Flash-Lite for extraction (well-defined schema, $0.10/1M input), Flash for Annie chat (medical reasoning, $0.50/1M input). Pro evaluated and rejected as overkill when Document AI handles OCR — see [`docs/llm-model-decisions.md`](docs/llm-model-decisions.md).
+4. **Right-sized models per task**: Flash for extraction and Annie chat ($0.50/1M input) — best quality for complex medical forms. Flash-Lite ($0.10/1M) documented as a cost-optimized alternative. Pro evaluated and rejected as overkill when Document AI handles OCR — see [`docs/llm-model-decisions.md`](docs/llm-model-decisions.md).
 
-5. **Server-side PDF generation**: Using `@react-pdf/renderer` on the server avoids client-side bundle bloat and enables consistent rendering.
+5. **Dual-provider confidence scoring**: Extraction confidence is derived from token log-probabilities, not heuristic per-field labels. Gemini logprobs are tried first; if unavailable (a [known Gemini limitation](https://discuss.ai.google.dev/t/logprobs-is-not-enabled-for-gemini-models/107989)), a lightweight OpenAI GPT-4o-mini re-emission provides the score at < $0.001/call — see [`docs/extraction-confidence.md`](docs/extraction-confidence.md).
 
-6. **SSE streaming for Annie**: Server-Sent Events provide real-time token streaming for the chat assistant without WebSocket complexity.
+6. **Server-side PDF generation**: Using `@react-pdf/renderer` on the server avoids client-side bundle bloat and enables consistent rendering.
 
-7. **Two extraction metrics at case level**: Logprobs-derived **extraction confidence** measures model certainty for the emitted JSON; **form completeness** measures how many schema fields have values. Averaging per-field labels across empty slots previously mixed “missing in source” with “uncertain read” — see [`docs/extraction-confidence.md`](docs/extraction-confidence.md).
+7. **SSE streaming for Annie**: Server-Sent Events provide real-time token streaming for the chat assistant without WebSocket complexity.
+
+8. **Two extraction metrics at case level**: Logprobs-derived **extraction confidence** measures model certainty for the emitted JSON; **form completeness** measures how many schema fields have values. Averaging per-field labels across empty slots previously mixed “missing in source” with “uncertain read” — see [`docs/extraction-confidence.md`](docs/extraction-confidence.md).
 
 ## If I Had More Time
 
 - **Richer Document AI** (custom processors, forms parsers) beyond baseline Document OCR
 - **Realtime voice chat** using OpenAI Realtime API with WebRTC
 - **Batch processing** for multi-case uploads
-- **Row-Level Security** policies in Supabase for defense-in-depth
 - **Unit tests** (Vitest) and **E2E tests** (Playwright)
 - **HIPAA hardening**: audit logs, encryption at rest, BAA
 - **i18n** support for multi-language documents
