@@ -14,7 +14,7 @@ export const LOGO_SUBTITLE_INSET_PERCENT = (275 / 1080) * 100;
 export const APP_DESCRIPTION =
 	"AI-powered prior authorization scribe — extract clinical documents into completed service request forms";
 export const APP_ASSISTANT_NAME = "Annie";
-/** Public path; keep in sync with `public/annie-avatar.webp` */
-export const APP_ASSISTANT_AVATAR_SRC = "/annie-avatar.webp";
+/** Public path; keep in sync with `public/annie-avatar.png` */
+export const APP_ASSISTANT_AVATAR_SRC = "/annie-avatar.png";
 export const APP_ASSISTANT_SUBTITLE =
 	"AI Case Assistant · Powered by Gemini Flash";
