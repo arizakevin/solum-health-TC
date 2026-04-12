@@ -167,28 +167,30 @@ export function ServiceRequestForm({
 	}
 
 	return (
-		<div className="space-y-4">
-			<Accordion defaultValue={[0, 1]}>
-				{SECTION_CONFIG.map((section) => (
-					<FormSection
-						key={section.id}
-						id={section.id}
-						title={section.title}
-						fields={
-							formData[section.key] as Record<
-								string,
-								ExtractedField | ExtractedField[]
-							>
-						}
-						fieldLabels={section.labels as unknown as Record<string, string>}
-						onFieldChange={(fieldName, value, index) =>
-							handleFieldChange(section.key, fieldName, value, index)
-						}
-					/>
-				))}
-			</Accordion>
+		<div className="flex h-full min-h-0 flex-col gap-3">
+			<div className="min-h-0 flex-1 overflow-y-auto">
+				<Accordion defaultValue={[0, 1]} className="min-h-0">
+					{SECTION_CONFIG.map((section) => (
+						<FormSection
+							key={section.id}
+							id={section.id}
+							title={section.title}
+							fields={
+								formData[section.key] as Record<
+									string,
+									ExtractedField | ExtractedField[]
+								>
+							}
+							fieldLabels={section.labels as unknown as Record<string, string>}
+							onFieldChange={(fieldName, value, index) =>
+								handleFieldChange(section.key, fieldName, value, index)
+							}
+						/>
+					))}
+				</Accordion>
+			</div>
 
-			<div className="flex justify-end gap-2 border-t pt-4">
+			<div className="flex shrink-0 justify-end gap-2 border-t pt-4">
 				<Button variant="outline" onClick={handleSave} disabled={isSaving}>
 					<Save className="mr-2 h-4 w-4" />
 					{isSaving ? "Saving..." : "Save Draft"}

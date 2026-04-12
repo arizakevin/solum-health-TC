@@ -59,7 +59,10 @@ interface UploadingFile {
 interface SourceDocumentsPanelProps {
 	caseId: string;
 	documents: DocumentInfo[];
-	aggregateConfidence: number;
+	/** Calibrated extraction quality (0–100); null if case predates logprobs storage. */
+	extractionConfidencePercent: number | null;
+	formFilledCount: number;
+	formTotalCount: number;
 	extractionDate: Date | null;
 	onReExtract: () => void;
 	onDeleteDocument: (documentId: string) => Promise<void>;
@@ -70,7 +73,9 @@ interface SourceDocumentsPanelProps {
 export function SourceDocumentsPanel({
 	caseId,
 	documents,
-	aggregateConfidence,
+	extractionConfidencePercent,
+	formFilledCount,
+	formTotalCount,
 	extractionDate,
 	onReExtract,
 	onDeleteDocument,
@@ -339,25 +344,81 @@ export function SourceDocumentsPanel({
 
 			{/* Footer */}
 			<div className="flex items-center justify-between border-t px-3 py-2 text-xs text-muted-foreground">
-				<div className="flex items-center gap-3">
-					{extractionDate && (
+				<TooltipProvider delay={300}>
+					<div className="flex flex-wrap items-center gap-2">
+						{extractionDate && (
+							<span>
+								Extracted{" "}
+								{extractionDate.toLocaleDateString("en-US", {
+									month: "short",
+									day: "numeric",
+								})}
+							</span>
+						)}
 						<span>
-							Extracted{" "}
-							{extractionDate.toLocaleDateString("en-US", {
-								month: "short",
-								day: "numeric",
-							})}
+							{documents.length} doc{documents.length !== 1 ? "s" : ""}
 						</span>
-					)}
-					<span>
-						{documents.length} doc{documents.length !== 1 ? "s" : ""}
-					</span>
-					{aggregateConfidence > 0 && (
-						<Badge variant="secondary" className="text-xs">
-							{Math.round(aggregateConfidence)}% avg confidence
-						</Badge>
-					)}
-				</div>
+						{formTotalCount > 0 && (
+							<Tooltip>
+								<TooltipTrigger>
+									<span className="inline-flex">
+										<Badge variant="secondary" className="text-xs">
+											{formFilledCount}/{formTotalCount} fields
+										</Badge>
+									</span>
+								</TooltipTrigger>
+								<TooltipContent className="max-w-xs">
+									{formFilledCount} of {formTotalCount} form fields have been
+									filled — either from the extracted documents or your manual
+									edits.
+								</TooltipContent>
+							</Tooltip>
+						)}
+						{extractionConfidencePercent != null && (
+							<Tooltip>
+								<TooltipTrigger>
+									<span className="inline-flex">
+										<Badge
+											variant="outline"
+											className={cn(
+												"text-xs font-medium",
+												extractionConfidencePercent >= 80
+													? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
+													: extractionConfidencePercent >= 50
+														? "border-amber-500/40 bg-amber-500/10 text-amber-400"
+														: "border-red-500/40 bg-red-500/10 text-red-400",
+											)}
+										>
+											{Math.round(extractionConfidencePercent)}% confidence
+										</Badge>
+									</span>
+								</TooltipTrigger>
+								<TooltipContent className="max-w-xs">
+									How confident the AI was about the extracted values. Higher
+									scores mean more reliable results.
+								</TooltipContent>
+							</Tooltip>
+						)}
+						{extractionConfidencePercent == null && formTotalCount > 0 && (
+							<Tooltip>
+								<TooltipTrigger>
+									<span className="inline-flex">
+										<Badge
+											variant="outline"
+											className="text-xs text-muted-foreground"
+										>
+											Confidence: pending
+										</Badge>
+									</span>
+								</TooltipTrigger>
+								<TooltipContent className="max-w-xs">
+									Confidence score not yet available. Re-extract this case to
+									see how confident the AI is about the results.
+								</TooltipContent>
+							</Tooltip>
+						)}
+					</div>
+				</TooltipProvider>
 				<Button
 					variant="ghost"
 					size="sm"

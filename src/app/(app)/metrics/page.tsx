@@ -3,26 +3,70 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+function legacyLabelAvgOnFilledFields(
+	fields: {
+		confidence: string;
+		autoValue: string | null;
+		finalValue: string | null;
+	}[],
+): number {
+	const filled = fields.filter(
+		(f) => (f.finalValue ?? f.autoValue ?? "").trim() !== "",
+	);
+	if (filled.length === 0) return 0;
+	let high = 0;
+	let med = 0;
+	for (const f of filled) {
+		if (f.confidence === "high") high++;
+		else if (f.confidence === "medium") med++;
+	}
+	const low = filled.length - high - med;
+	return (high * 95 + med * 78 + low * 45) / filled.length;
+}
+
 async function getMetrics() {
 	try {
 		const totalCases = await prisma.case.count();
 		const docsProcessed = await prisma.document.count();
 		const allFields = await prisma.extractionField.findMany();
+		const cases = await prisma.case.findMany({
+			include: { extractionFields: true },
+		});
+
+		const withLogprobs = cases.filter(
+			(c) =>
+				c.extractionConfidence != null &&
+				Number.isFinite(c.extractionConfidence),
+		);
+		const extractionConfidenceIsLegacyEstimate = withLogprobs.length === 0;
+		const avgExtractionConfidence =
+			withLogprobs.length > 0
+				? withLogprobs.reduce(
+						(s, c) => s + (c.extractionConfidence as number),
+						0,
+					) / withLogprobs.length
+				: legacyLabelAvgOnFilledFields(allFields);
+
+		const completenessPercents: number[] = [];
+		for (const c of cases) {
+			const f = c.extractionFields;
+			const t = f.length;
+			if (t === 0) continue;
+			const filled = f.filter(
+				(x) => (x.finalValue ?? x.autoValue ?? "").trim() !== "",
+			).length;
+			completenessPercents.push((filled / t) * 100);
+		}
+		const avgFormCompleteness =
+			completenessPercents.length > 0
+				? completenessPercents.reduce((a, b) => a + b, 0) /
+					completenessPercents.length
+				: 0;
 
 		const total = allFields.length;
 		const correctedCount = allFields.filter(
 			(f: (typeof allFields)[number]) => f.wasCorrected,
 		).length;
-
-		const highCount = allFields.filter(
-			(f: (typeof allFields)[number]) => f.confidence === "high",
-		).length;
-		const medCount = allFields.filter(
-			(f: (typeof allFields)[number]) => f.confidence === "medium",
-		).length;
-		const lowCount = total - highCount - medCount;
-		const avgConfidence =
-			total > 0 ? (highCount * 95 + medCount * 78 + lowCount * 45) / total : 0;
 
 		const sectionMap: Record<string, { corrected: number; total: number }> = {};
 		for (const field of allFields) {
@@ -37,7 +81,9 @@ async function getMetrics() {
 
 		return {
 			totalCases,
-			avgConfidence,
+			avgExtractionConfidence,
+			extractionConfidenceIsLegacyEstimate,
+			avgFormCompleteness,
 			fieldsCorrected: { count: correctedCount, total },
 			docsProcessed,
 			correctionsBySection: sectionMap,
@@ -45,7 +91,9 @@ async function getMetrics() {
 	} catch {
 		return {
 			totalCases: 0,
-			avgConfidence: 0,
+			avgExtractionConfidence: 0,
+			extractionConfidenceIsLegacyEstimate: true,
+			avgFormCompleteness: 0,
 			fieldsCorrected: { count: 0, total: 0 },
 			docsProcessed: 0,
 			correctionsBySection: {},
@@ -60,7 +108,7 @@ export default async function MetricsPage() {
 		<div>
 			<h1 className="text-3xl font-bold tracking-tight">Metrics</h1>
 			<p className="mb-6 text-muted-foreground">
-				Extraction accuracy and correction tracking
+				Extraction confidence, form completeness, and correction tracking
 			</p>
 
 			<MetricsDashboard data={metrics} />

@@ -14,7 +14,13 @@ export async function POST(request: Request) {
 			);
 		}
 
-		const result = await runCaseExtraction(caseId);
+		const enhancedOcr = body?.enhancedOcr as boolean | undefined;
+		const forceOcr = body?.forceOcr as boolean | undefined;
+
+		const result = await runCaseExtraction(caseId, {
+			enhancedOcr,
+			forceOcr,
+		});
 
 		if (!result.ok) {
 			return NextResponse.json(

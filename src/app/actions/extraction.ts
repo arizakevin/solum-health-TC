@@ -1,7 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { runCaseExtraction } from "@/lib/extraction/run-case-extraction";
+import {
+	type ExtractionOptions,
+	runCaseExtraction,
+} from "@/lib/extraction/run-case-extraction";
 import { prisma } from "@/lib/prisma";
 import type { ServiceRequestExtraction } from "@/lib/types/service-request";
 
@@ -65,8 +68,11 @@ export async function approveAndGeneratePdf(
 	revalidatePath("/");
 }
 
-export async function triggerExtraction(caseId: string) {
-	const result = await runCaseExtraction(caseId);
+export async function triggerExtraction(
+	caseId: string,
+	options?: ExtractionOptions,
+) {
+	const result = await runCaseExtraction(caseId, options);
 
 	if (!result.ok) {
 		const msg = result.details

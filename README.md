@@ -18,7 +18,8 @@ An AI-powered healthcare document extraction system that automates service reque
 ### AI-Powered Extraction
 - **Gemini structured output** with JSON schema enforcement
 - Extracts all fields for service request form sections A–G
-- Per-field **confidence scoring** (high / medium / low) with visual indicators
+- Per-field **confidence labels** (high / medium / low) with visual indicators
+- **Case-level extraction confidence** from token log-probabilities (`avgLogprobs`), stored separately from **form completeness** (filled ÷ total fields) — see [`docs/extraction-confidence.md`](docs/extraction-confidence.md)
 - Multi-document cross-referencing for higher accuracy
 
 ### Human-in-the-Loop Review
@@ -40,7 +41,7 @@ An AI-powered healthcare document extraction system that automates service reque
 - Floating drawer UI with message history
 
 ### Correction Metrics Dashboard
-- Aggregate statistics: total cases, avg confidence, correction rate
+- Aggregate statistics: total cases, avg extraction confidence, avg form completeness, correction rate
 - Per-section correction breakdown with progress bars
 - Recent corrections table
 
@@ -60,9 +61,9 @@ An AI-powered healthcare document extraction system that automates service reque
 | Auth | Supabase Auth (email + Google OAuth) |
 | Database | Supabase Postgres + Prisma 7 ORM |
 | Storage | Supabase Storage |
-| AI | Google Gemini (`@google/genai` SDK) |
+| AI | Google Gemini 3.x (`@google/genai` SDK) — see [`docs/llm-model-decisions.md`](docs/llm-model-decisions.md) |
 | PDF | `@react-pdf/renderer` (server-side) |
-| OCR | `pdfjs-dist` (text extraction) |
+| OCR | `pdfjs-dist` (text extraction); optional **Cloud Document AI** (see `docs/document-ai-ocr.md`) |
 | Linting | Biome 2.4, Husky, lint-staged |
 | CI | GitHub Actions (Biome + TypeScript check) |
 
@@ -109,9 +110,9 @@ src/
 │   └── utils.ts
 ├── stores/ui-store.ts
 └── middleware.ts
+prisma.config.ts                # Prisma 7 config (datasource URL)
 prisma/
-├── schema.prisma               # Data model (ERD)
-└── prisma.config.ts            # Prisma 7 config
+└── schema.prisma               # Data model (ERD)
 ```
 
 ## Getting Started
@@ -120,6 +121,7 @@ prisma/
 - Node.js 22+
 - Supabase project (Auth + Postgres + Storage)
 - Google AI Studio API key (Gemini)
+- Optional: Google Cloud **Document AI** (processor + service account JSON) for dedicated OCR — see [`docs/document-ai-ocr.md`](docs/document-ai-ocr.md)
 
 ### Setup
 
@@ -132,9 +134,14 @@ npm install
 # Configure environment
 cp .env.example .env.local
 # Fill in your Supabase and Gemini credentials
+# Optional: mkdir -p secrets && place your Document AI service account JSON there (see docs/document-ai-ocr.md)
 
-# Push database schema
-npx prisma db push
+# Apply database migrations (preferred) or push schema in dev
+npx prisma migrate deploy
+# Dev-only alternative: npx prisma db push
+
+# After schema changes that add case-level metrics, re-run extraction for existing cases (optional)
+# npm run reextract:all -- --yes
 
 # Run development server
 npm run dev
@@ -155,9 +162,13 @@ npm run dev
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
 | `DATABASE_URL` | Supabase Postgres connection string |
 | `GEMINI_API_KEY` | Google AI Studio API key |
-| `EXTRACTION_MODEL_ID` | Model for extraction (default: `gemini-2.0-flash`) |
-| `ASSISTANT_MODEL_ID` | Model for Annie (default: `gemini-2.0-flash`) |
+| `EXTRACTION_MODEL_ID` | Model for extraction (default: `gemini-3.1-flash-lite-preview`) — see [`docs/llm-model-decisions.md`](docs/llm-model-decisions.md) |
+| `ASSISTANT_MODEL_ID` | Model for Annie chat (default: `gemini-3-flash-preview`) — see [`docs/llm-model-decisions.md`](docs/llm-model-decisions.md) |
 | `NEXT_PUBLIC_SITE_URL` | Application URL for OAuth callbacks |
+| `GOOGLE_CLOUD_PROJECT_ID` | GCP project id (Document AI) |
+| `GOOGLE_CLOUD_LOCATION` | Processor region (must match processor) |
+| `GOOGLE_DOCUMENT_AI_PROCESSOR_ID` | Document AI Document OCR processor id |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Path to service account JSON (e.g. `./secrets/key.json`) |
 
 ## Design Decisions
 
@@ -165,15 +176,19 @@ npm run dev
 
 2. **Correction tracking at field level**: Each `ExtractionField` record stores both `autoValue` (original AI extraction) and `finalValue` (after human review), with a `wasCorrected` flag. This enables per-field and per-section accuracy metrics.
 
-3. **PDF text extraction + vision**: For PDFs, we extract text via `pdfjs-dist` AND send the raw PDF to Gemini as inline data. This dual approach handles both text-based and scanned PDFs.
+3. **Three-layer OCR + extraction pipeline**: `pdfjs-dist` handles text-layer PDFs locally; **Cloud Document AI** provides dedicated OCR for scanned documents, handwriting, and images; **Gemini** receives the pre-extracted text plus the original file for structured form mapping. This separation lets the extraction model (Flash-Lite) focus on reasoning rather than pixel-level text recovery — see [`docs/document-ai-ocr.md`](docs/document-ai-ocr.md).
 
-4. **Server-side PDF generation**: Using `@react-pdf/renderer` on the server avoids client-side bundle bloat and enables consistent rendering.
+4. **Right-sized models per task**: Flash-Lite for extraction (well-defined schema, $0.10/1M input), Flash for Annie chat (medical reasoning, $0.50/1M input). Pro evaluated and rejected as overkill when Document AI handles OCR — see [`docs/llm-model-decisions.md`](docs/llm-model-decisions.md).
 
-5. **SSE streaming for Annie**: Server-Sent Events provide real-time token streaming for the chat assistant without WebSocket complexity.
+5. **Server-side PDF generation**: Using `@react-pdf/renderer` on the server avoids client-side bundle bloat and enables consistent rendering.
+
+6. **SSE streaming for Annie**: Server-Sent Events provide real-time token streaming for the chat assistant without WebSocket complexity.
+
+7. **Two extraction metrics at case level**: Logprobs-derived **extraction confidence** measures model certainty for the emitted JSON; **form completeness** measures how many schema fields have values. Averaging per-field labels across empty slots previously mixed “missing in source” with “uncertain read” — see [`docs/extraction-confidence.md`](docs/extraction-confidence.md).
 
 ## If I Had More Time
 
-- **GCP Document AI** for production-grade OCR on scanned documents
+- **Richer Document AI** (custom processors, forms parsers) beyond baseline Document OCR
 - **Realtime voice chat** using OpenAI Realtime API with WebRTC
 - **Batch processing** for multi-case uploads
 - **Row-Level Security** policies in Supabase for defense-in-depth

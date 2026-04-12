@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { isDocumentAiConfigured } from "@/lib/document-ai/config";
 import { prisma } from "@/lib/prisma";
 import { CaseReviewClient } from "./case-review-client";
 
@@ -35,18 +36,17 @@ export default async function CaseReviewPage({
 		uploadedAt: d.uploadedAt,
 	}));
 
-	const highCount = fields.filter(
-		(f: (typeof fields)[number]) => f.confidence === "high",
+	const formTotalCount = fields.length;
+	const formFilledCount = fields.filter(
+		(f: (typeof fields)[number]) =>
+			(f.finalValue ?? f.autoValue ?? "").trim() !== "",
 	).length;
-	const medCount = fields.filter(
-		(f: (typeof fields)[number]) => f.confidence === "medium",
-	).length;
-	const total = fields.length;
-	const aggregateConfidence =
-		total > 0
-			? (highCount * 95 + medCount * 78 + (total - highCount - medCount) * 45) /
-				total
-			: 0;
+
+	const extractionConfidencePercent =
+		caseData.extractionConfidence != null &&
+		Number.isFinite(caseData.extractionConfidence)
+			? caseData.extractionConfidence
+			: null;
 
 	const extractionDate = fields.length > 0 ? fields[0].extractedAt : null;
 
@@ -62,8 +62,11 @@ export default async function CaseReviewPage({
 						unknown
 					> | null
 				}
-				aggregateConfidence={aggregateConfidence}
+				extractionConfidencePercent={extractionConfidencePercent}
+				formFilledCount={formFilledCount}
+				formTotalCount={formTotalCount}
 				extractionDate={extractionDate}
+				ocrAvailable={isDocumentAiConfigured()}
 			/>
 		</Suspense>
 	);

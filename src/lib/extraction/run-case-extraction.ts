@@ -1,13 +1,32 @@
 import type { Content, Part } from "@google/genai";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { EXTRACTION_SYSTEM_PROMPT } from "@/lib/ai/extraction-prompt";
 import { serviceRequestResponseSchema } from "@/lib/ai/extraction-schema";
 import { getExtractionModelId, getGeminiClient } from "@/lib/ai/gemini";
+import { avgLogprobsToExtractionConfidencePercent } from "@/lib/ai/logprobs-confidence";
+import { runOpenAIConfidencePass } from "@/lib/ai/openai-confidence-pass";
+import { isDocumentAiConfigured } from "@/lib/document-ai/config";
+import { runDocumentOcr } from "@/lib/document-ai/run-document-ocr";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import type {
 	Confidence,
 	ServiceRequestExtraction,
 } from "@/lib/types/service-request";
+
+export interface ExtractionOptions {
+	/** Enable Document AI OCR for scanned/handwritten docs (default: true when configured) */
+	enhancedOcr?: boolean;
+	/** Force OCR on all documents including rich-text PDFs (default: false) */
+	forceOcr?: boolean;
+}
+
+const IMAGE_MIME_TYPES = new Set([
+	"image/png",
+	"image/jpeg",
+	"image/tiff",
+	"image/tif",
+]);
 
 export type RunCaseExtractionResult =
 	| {
@@ -30,6 +49,7 @@ export type RunCaseExtractionResult =
  */
 export async function runCaseExtraction(
 	caseId: string,
+	options: ExtractionOptions = {},
 ): Promise<RunCaseExtractionResult> {
 	const supabase = await createClient();
 	const {
@@ -48,6 +68,18 @@ export async function runCaseExtraction(
 		return { ok: false, status: 404, error: "Case not found" };
 	}
 
+	return runCaseExtractionPipeline(caseId, options, supabase);
+}
+
+/**
+ * Runs download → OCR (optional) → Gemini → Prisma for a case.
+ * Pass a Supabase client with storage access (user session or service role for scripts).
+ */
+export async function runCaseExtractionPipeline(
+	caseId: string,
+	options: ExtractionOptions,
+	supabase: SupabaseClient,
+): Promise<RunCaseExtractionResult> {
 	try {
 		await prisma.case.update({
 			where: { id: caseId },
@@ -66,6 +98,10 @@ export async function runCaseExtraction(
 			};
 		}
 
+		const enhancedOcr = options.enhancedOcr ?? true;
+		const forceOcr = options.forceOcr ?? false;
+		const ocrAvailable = enhancedOcr && isDocumentAiConfigured();
+
 		const parts: Part[] = [];
 
 		for (const doc of documents) {
@@ -79,12 +115,13 @@ export async function runCaseExtraction(
 			}
 
 			const buffer = Buffer.from(await data.arrayBuffer());
+			const pdfBytes = new Uint8Array(buffer);
 
 			if (doc.contentType === "application/pdf") {
 				let textContent = "";
 				try {
 					const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-					const pdfDoc = await pdfjs.getDocument({ data: buffer }).promise;
+					const pdfDoc = await pdfjs.getDocument({ data: pdfBytes }).promise;
 
 					for (let i = 1; i <= pdfDoc.numPages; i++) {
 						const page = await pdfDoc.getPage(i);
@@ -112,15 +149,42 @@ export async function runCaseExtraction(
 					);
 				}
 
-				if (textContent.trim().length > 50) {
+				const pdfjsSparse = textContent.trim().length <= 50;
+
+				if (!pdfjsSparse) {
 					parts.push({
 						text: `\n\n=== Document: ${doc.filename} (text extracted) ===\n${textContent}`,
 					});
 				}
 
+				if (ocrAvailable && (pdfjsSparse || forceOcr)) {
+					const ocrText = await runDocumentOcr(buffer, "application/pdf");
+					if (ocrText) {
+						parts.push({
+							text: `\n\n=== Document: ${doc.filename} (Document AI OCR) ===\n${ocrText}`,
+						});
+					}
+				}
+
 				parts.push({
 					inlineData: {
 						mimeType: "application/pdf",
+						data: buffer.toString("base64"),
+					},
+				});
+			} else if (IMAGE_MIME_TYPES.has(doc.contentType)) {
+				if (ocrAvailable) {
+					const ocrText = await runDocumentOcr(buffer, doc.contentType);
+					if (ocrText) {
+						parts.push({
+							text: `\n\n=== Document: ${doc.filename} (Document AI OCR) ===\n${ocrText}`,
+						});
+					}
+				}
+
+				parts.push({
+					inlineData: {
+						mimeType: doc.contentType,
 						data: buffer.toString("base64"),
 					},
 				});
@@ -139,16 +203,50 @@ export async function runCaseExtraction(
 		});
 
 		const ai = getGeminiClient();
-		const response = await ai.models.generateContent({
-			model: getExtractionModelId(),
-			contents: [{ role: "user", parts }] as Content[],
-			config: {
-				systemInstruction: EXTRACTION_SYSTEM_PROMPT,
-				responseMimeType: "application/json",
-				responseSchema: serviceRequestResponseSchema,
-				temperature: 0.1,
-			},
-		});
+		const modelId = getExtractionModelId();
+		const contents = [{ role: "user", parts }] as Content[];
+		const baseConfig = {
+			systemInstruction: EXTRACTION_SYSTEM_PROMPT,
+			responseMimeType: "application/json" as const,
+			responseSchema: serviceRequestResponseSchema,
+			temperature: 0.1,
+		};
+
+		let response: Awaited<ReturnType<typeof ai.models.generateContent>>;
+		let extractionConfidence: number | null = null;
+
+		// Try Gemini with logprobs first; fall back to plain extraction if unsupported
+		try {
+			response = await ai.models.generateContent({
+				model: modelId,
+				contents,
+				config: {
+					...baseConfig,
+					responseLogprobs: true,
+					logprobs: 5,
+				},
+			});
+			const rawLogprobs = response.candidates?.[0]?.avgLogprobs;
+			if (rawLogprobs != null) {
+				extractionConfidence =
+					avgLogprobsToExtractionConfidencePercent(rawLogprobs);
+			}
+		} catch (firstErr) {
+			const msg =
+				firstErr instanceof Error ? firstErr.message : String(firstErr);
+			const logprobsUnsupported =
+				msg.includes("Logprobs is not enabled") ||
+				(/logprob/i.test(msg) &&
+					(/not enabled/i.test(msg) || /INVALID_ARGUMENT/i.test(msg)));
+			if (!logprobsUnsupported) {
+				throw firstErr;
+			}
+			response = await ai.models.generateContent({
+				model: modelId,
+				contents,
+				config: baseConfig,
+			});
+		}
 
 		const responseText = response.text ?? "";
 		let extraction: ServiceRequestExtraction;
@@ -162,6 +260,11 @@ export async function runCaseExtraction(
 				error: "Failed to parse extraction response",
 				raw: responseText,
 			};
+		}
+
+		// Fallback: if Gemini didn't provide logprobs, use OpenAI confidence pass
+		if (extractionConfidence == null && process.env.OPENAI_API_KEY) {
+			extractionConfidence = await runOpenAIConfidencePass(extraction);
 		}
 
 		await prisma.extractionField.deleteMany({ where: { caseId } });
@@ -221,6 +324,7 @@ export async function runCaseExtraction(
 				status: "In Review",
 				rawExtraction: JSON.parse(JSON.stringify(extraction)),
 				finalFormData: JSON.parse(JSON.stringify(extraction)),
+				extractionConfidence,
 			},
 		});
 

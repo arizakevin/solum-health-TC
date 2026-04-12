@@ -1,12 +1,23 @@
 "use client";
 
-import { BarChart3, FileCheck, FileText, TrendingUp } from "lucide-react";
+import {
+	BarChart3,
+	FileCheck,
+	FileText,
+	ListChecks,
+	TrendingUp,
+} from "lucide-react";
 import { RecentCorrectionsTable } from "@/components/recent-corrections-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface MetricsData {
 	totalCases: number;
-	avgConfidence: number;
+	/** Mean logprobs-based extraction confidence across cases that have it. */
+	avgExtractionConfidence: number;
+	/** True when no case had `extractionConfidence` yet (estimate from filled-field labels). */
+	extractionConfidenceIsLegacyEstimate: boolean;
+	/** Mean of per-case (filled fields / total fields) × 100. */
+	avgFormCompleteness: number;
 	fieldsCorrected: { count: number; total: number };
 	docsProcessed: number;
 	correctionsBySection: Record<string, { corrected: number; total: number }>;
@@ -34,7 +45,7 @@ export function MetricsDashboard({ data }: { data: MetricsData }) {
 
 	return (
 		<div className="space-y-6">
-			<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+			<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between pb-2">
 						<CardTitle className="text-sm font-medium">Total Cases</CardTitle>
@@ -48,14 +59,48 @@ export function MetricsDashboard({ data }: { data: MetricsData }) {
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between pb-2">
 						<CardTitle className="text-sm font-medium">
-							Avg Confidence
+							Extraction Confidence
 						</CardTitle>
 						<TrendingUp className="h-4 w-4 text-muted-foreground" />
 					</CardHeader>
 					<CardContent>
-						<div className="text-2xl font-bold">
-							{data.avgConfidence.toFixed(0)}%
+						<div
+							className={
+								data.avgExtractionConfidence >= 80
+									? "text-2xl font-bold text-emerald-400"
+									: data.avgExtractionConfidence >= 50
+										? "text-2xl font-bold text-amber-400"
+										: "text-2xl font-bold text-red-400"
+							}
+						>
+							{data.avgExtractionConfidence.toFixed(0)}%
 						</div>
+						{data.extractionConfidenceIsLegacyEstimate ? (
+							<p className="mt-1 text-xs text-muted-foreground">
+								Estimated — re-extract cases for precise scores.
+							</p>
+						) : (
+							<p className="mt-1 text-xs text-muted-foreground">
+								Average AI certainty across all extracted cases.
+							</p>
+						)}
+					</CardContent>
+				</Card>
+
+				<Card>
+					<CardHeader className="flex flex-row items-center justify-between pb-2">
+						<CardTitle className="text-sm font-medium">
+							Form Completeness
+						</CardTitle>
+						<ListChecks className="h-4 w-4 text-muted-foreground" />
+					</CardHeader>
+					<CardContent>
+						<div className="text-2xl font-bold">
+							{data.avgFormCompleteness.toFixed(0)}%
+						</div>
+						<p className="mt-1 text-xs text-muted-foreground">
+							Average share of form fields filled across all cases.
+						</p>
 					</CardContent>
 				</Card>
 

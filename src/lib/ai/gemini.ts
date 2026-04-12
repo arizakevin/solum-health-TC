@@ -12,9 +12,9 @@ export function getGeminiClient(): GoogleGenAI {
 }
 
 export function getExtractionModelId(): string {
-	return process.env.EXTRACTION_MODEL_ID ?? "gemini-2.0-flash";
+	return process.env.EXTRACTION_MODEL_ID ?? "gemini-3-flash-preview";
 }
 
 export function getAssistantModelId(): string {
-	return process.env.ASSISTANT_MODEL_ID ?? "gemini-2.0-flash";
+	return process.env.ASSISTANT_MODEL_ID ?? "gemini-3-flash-preview";
 }

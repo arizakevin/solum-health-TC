@@ -16,6 +16,9 @@ build/
 .env.*
 !.env.example
 
+# GCP service account keys and other local secrets (never commit)
+secrets/
+
 # IDE / Editor
 .cursor/
 .vscode/

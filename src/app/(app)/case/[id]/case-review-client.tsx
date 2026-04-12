@@ -9,6 +9,10 @@ import {
 	triggerExtraction,
 } from "@/app/actions/extraction";
 import { DeleteCaseButton } from "@/components/delete-case-button";
+import {
+	ExtractionSettings,
+	type ExtractionSettingsValues,
+} from "@/components/extraction-settings";
 import { ServiceRequestForm } from "@/components/service-request-form";
 import { SourceDocumentsPanel } from "@/components/source-documents-panel";
 import { Badge } from "@/components/ui/badge";
@@ -25,8 +29,12 @@ interface CaseReviewClientProps {
 		uploadedAt: Date;
 	}[];
 	extraction: Record<string, unknown> | null;
-	aggregateConfidence: number;
+	/** Logprobs-based 0–100; null until a post-change re-extraction stores it. */
+	extractionConfidencePercent: number | null;
+	formFilledCount: number;
+	formTotalCount: number;
 	extractionDate: Date | null;
+	ocrAvailable: boolean;
 }
 
 export function CaseReviewClient({
@@ -34,13 +42,20 @@ export function CaseReviewClient({
 	caseStatus,
 	documents,
 	extraction,
-	aggregateConfidence,
+	extractionConfidencePercent,
+	formFilledCount,
+	formTotalCount,
 	extractionDate,
+	ocrAvailable,
 }: CaseReviewClientProps) {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const [isExtracting, setIsExtracting] = useState(false);
 	const autoExtractFired = useRef(false);
+	const [ocrSettings, setOcrSettings] = useState<ExtractionSettingsValues>({
+		enhancedOcr: true,
+		forceOcr: false,
+	});
 
 	useEffect(() => {
 		if (
@@ -58,7 +73,10 @@ export function CaseReviewClient({
 	async function handleReExtract() {
 		setIsExtracting(true);
 		try {
-			await triggerExtraction(caseId);
+			await triggerExtraction(caseId, {
+				enhancedOcr: ocrSettings.enhancedOcr,
+				forceOcr: ocrSettings.forceOcr,
+			});
 			router.refresh();
 		} catch (err) {
 			console.error("Re-extraction failed:", err);
@@ -108,41 +126,55 @@ export function CaseReviewClient({
 				/>
 			</div>
 
-			<div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
-				<div className="min-h-[500px]">
-					<SourceDocumentsPanel
-						caseId={caseId}
-						documents={documents}
-						aggregateConfidence={aggregateConfidence}
-						extractionDate={extractionDate}
-						onReExtract={handleReExtract}
-						onDeleteDocument={handleDeleteDocument}
-						onUploadComplete={handleUploadComplete}
-						isExtracting={isExtracting}
+			<div className="grid gap-6 lg:grid-cols-[1fr_1.2fr] lg:items-stretch">
+				<div className="flex min-h-[500px] flex-col gap-3 lg:h-full">
+					<div className="flex min-h-0 flex-1 flex-col">
+						<SourceDocumentsPanel
+							caseId={caseId}
+							documents={documents}
+							extractionConfidencePercent={extractionConfidencePercent}
+							formFilledCount={formFilledCount}
+							formTotalCount={formTotalCount}
+							extractionDate={extractionDate}
+							onReExtract={handleReExtract}
+							onDeleteDocument={handleDeleteDocument}
+							onUploadComplete={handleUploadComplete}
+							isExtracting={isExtracting}
+						/>
+					</div>
+					<ExtractionSettings
+						value={ocrSettings}
+						onChange={setOcrSettings}
+						ocrAvailable={ocrAvailable}
 					/>
 				</div>
 
-				<div>
-					{hasExtraction ? (
-						<ServiceRequestForm
-							extraction={extraction as unknown as ServiceRequestExtraction}
-							onSave={handleSave}
-							onApprove={handleApprove}
-						/>
-					) : (
-						<div className="flex h-full min-h-[500px] items-center justify-center rounded-lg border text-muted-foreground">
-							{caseStatus === "Extracting" ? (
-								<div className="text-center">
-									<div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-									<p>Extracting data from documents...</p>
+				<div className="flex min-h-[500px] flex-col lg:h-full">
+					<div className="flex min-h-0 flex-1 flex-col">
+						{hasExtraction ? (
+							<ServiceRequestForm
+								extraction={extraction as unknown as ServiceRequestExtraction}
+								onSave={handleSave}
+								onApprove={handleApprove}
+							/>
+						) : (
+							<div className="flex min-h-0 flex-1 flex-col">
+								<div className="flex flex-1 items-center justify-center rounded-lg border px-4 text-center text-muted-foreground">
+									{caseStatus === "Extracting" ? (
+										<div className="text-center">
+											<div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+											<p>Extracting data from documents...</p>
+										</div>
+									) : (
+										<p>
+											No extraction data yet. Upload documents and run
+											extraction.
+										</p>
+									)}
 								</div>
-							) : (
-								<p>
-									No extraction data yet. Upload documents and run extraction.
-								</p>
-							)}
-						</div>
-					)}
+							</div>
+						)}
+					</div>
 				</div>
 			</div>
 		</div>
