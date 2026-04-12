@@ -45,7 +45,7 @@ We **keep** them for the case review UI. The **aggregate "extraction %"** uses l
 
 Document AI OCR regression testing showed aggregate "confidence" barely moving on handwritten notes. Investigation showed the old metric averaged label weights over **every** field, so empty fields (not in the document) dragged the score down the same way as uncertain extractions—unrelated to OCR improvements.
 
-Splitting **extraction confidence** (logprobs) from **form completeness** (filled/total) fixes that interpretation bug. See [`docs/WORKLOG.md`](./WORKLOG.md) Day 3.
+Splitting **extraction confidence** (logprobs) from **form completeness** (filled/total) fixes that interpretation bug. See [`docs/DEVLOG.md`](./DEVLOG.md) Day 3.
 
 ## Related docs
 

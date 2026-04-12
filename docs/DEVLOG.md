@@ -1,4 +1,4 @@
-# Work Log
+# Dev log
 
 ## Day 1 — April 10, 2026 (Planning & Architecture)
 
@@ -49,7 +49,7 @@ Screenshots below serve as **documented evidence** of the app's working state af
 | `metrics-page.png` | Aggregate metrics (cases, avg confidence, corrections) and recent-corrections visibility. |
 | `case-review-referral-letter.png` | High-confidence sample (referral letter): sources panel, aggregate confidence, form sections at a glance. |
 | `case-review-form-sections.png` | Same case with a section expanded: per-field confidence dots and section completion hints. |
-| `case-review-handwritten-note.png` | Harder document (handwritten note): lower aggregate confidence and more “missing” section indicators. |
+| `case-review-handwritten-note.png` | Harder document (handwritten note): lower aggregate confidence and more "missing" section indicators. |
 | `case-review-expanded-form.png` | Clinical progress note: mid-range aggregate confidence with collapsed sections. |
 | `case-review-form-fields-confidence.png` | Same case, member section expanded: mix of high-confidence filled fields and explicit **Missing** placeholders. |
 
@@ -99,39 +99,54 @@ _Results from running each sample PDF (01–06) through the production extractio
 - **Quality evidence**: prefer manual or E2E flows through the deployed/local UI so metrics match production code paths.
 - **Product naming**: AuthScribe by Solum Health — AI-powered prior authorization scribe.
 
-## Day 3 — April 12, 2026 (Document AI OCR + confidence architecture fix)
+## Day 3 — April 12, 2026 (Document AI OCR, confidence architecture, model selection)
 
-**Time spent:** ~4 hours (integration, regression passes, metric redesign, documentation)
+**Time spent:** ~6 hours (late night / early morning session)
 
-### What I did
+### Document AI OCR integration
 
-- Finished **Google Cloud Document AI** wiring (conditional OCR, extraction settings UI, pipeline hooks) and ran **Day 3 regression** on sample cases (typed referral, clinical notes, insurance card, handwritten note).
-- **Discovery:** Aggregate “avg confidence” barely moved on handwritten OCR runs (e.g. 67% vs 69% baseline). Code review showed the metric **averaged** mapped per-field labels (`high` / `medium` / `low` → 95 / 78 / 45) across **every** form field, so **empty fields** (not present in sparse sources) dragged the number down the same way as **uncertain extractions** — conflating **document completeness** with **extraction quality**.
-- **Redesign:** Persist **`extractionConfidence`** on `Case` from Gemini **`avgLogprobs`** (`responseLogprobs: true` in `@google/genai`; `Math.exp(avgLogprobs) * 100`, clamped 0–100). UI and metrics now show **extraction confidence** separately from **form completeness** (filled fields ÷ total). Per-field labels kept for dots/tooltips; prompt updated so “low” is not defined as “not found” for quality semantics.
-- Documentation: [`docs/extraction-confidence.md`](./extraction-confidence.md), updates to [`docs/document-ai-ocr.md`](./document-ai-ocr.md), [`docs/llm-model-decisions.md`](./llm-model-decisions.md), README; screenshots under [`docs/screenshots/day-3-2026-04-12-document-ai-ocr/`](./screenshots/day-3-2026-04-12-document-ai-ocr/).
+- Wired **Google Cloud Document AI** as a conditional OCR step: extraction settings UI, pipeline hooks, toggle between direct Gemini multimodal vs OCR-first text feed.
+- Regression on sample cases (typed referral, clinical notes, insurance card, handwritten note).
 
-### Key decisions (Day 3)
+### Confidence architecture fix
 
-- **No Vertex migration for logprobs** — the AI Studio–oriented SDK already exposes `avgLogprobs` on the candidate.
-- **Two metrics, not one** — OCR improvements should lift extraction confidence when the JSON is confident; completeness stays honest for partial sources (cards, short notes).
-- **Prisma migration** — `cases.extraction_confidence` nullable `Float` for backfill on next re-extract.
+- **Problem:** Aggregate "avg confidence" barely moved on handwritten OCR runs (67% → 69%). The old metric averaged per-field label weights (`high`/`medium`/`low` → 95/78/45) across **every** field — empty fields from sparse sources dragged the score down identically to uncertain extractions, conflating **completeness** with **quality**.
+- **Solution:** Split into two independent metrics:
+  - **Extraction confidence** (0–100): derived from model logprobs — how certain the AI was about the values it produced.
+  - **Form completeness** (filled/total): how much of the form has values, regardless of extraction quality.
+- **Prisma migration:** `cases.extraction_confidence` as nullable `Float`, backfilled on re-extract.
+- Per-field `high`/`medium`/`low` labels kept for dots/tooltips; prompt updated so "low" no longer means "not found."
+
+### Logprobs fallback chain
+
+- Gemini API key route [does not reliably support logprobs](https://discuss.ai.google.dev/t/logprobs-is-not-enabled-for-gemini-models/107989) — many models return "Logprobs is not enabled" or omit `avgLogprobs`.
+- Implemented a two-provider fallback: **Gemini logprobs → OpenAI `gpt-4o-mini` re-emission → `null`**. The OpenAI pass re-emits extracted JSON with `logprobs: true` and derives the same 0–100 score from mean token logprob (< $0.001 per call).
+
+### Model selection
+
+- Evaluated `gemini-3-flash-preview` ($0.50/$3.00) vs `gemini-3.1-flash-lite-preview` ($0.10/$0.40). Selected **Flash** as default — better structured mapping on complex medical forms. Flash-Lite documented as cost-downgrade option.
+- See [`docs/llm-model-decisions.md`](./llm-model-decisions.md) for full evaluation and pricing.
+
+### UI polish
+
+- Source panel: **"N% confidence"** badge with tiered color (green ≥80% / amber ≥50% / red <50%), **"Confidence: pending"** when no score yet, client-facing tooltips.
+- Metrics cards: retitled to **Extraction Confidence** and **Form Completeness** with color-coded values and plain-language subtitles.
+
+### Key decisions
+
+- **Two metrics, not one** — OCR improvements lift extraction confidence independently; completeness stays honest for sparse sources.
+- **No Vertex dependency for confidence** — OpenAI keys already available; Vertex remains optional if Gemini logprobs stabilize.
+- **Flash over Flash-Lite** — quality wins for a challenge demo; Flash-Lite is a documented cost-downgrade path.
 
 ### Evidence
 
-- Day 3 screenshot set: [`docs/screenshots/day-3-2026-04-12-document-ai-ocr/`](./screenshots/day-3-2026-04-12-document-ai-ocr/) (dashboard, case review variants, metrics, extraction settings).
-- After deploying this fix, **re-extract** existing cases once so `extractionConfidence` populates; metrics page shows a legacy footnote until at least one case has the new column filled.
+| Folder | Contents |
+|--------|----------|
+| [`day-3-2026-04-12-document-ai-ocr/`](./screenshots/day-3-2026-04-12-document-ai-ocr/) | OCR integration: dashboard, case reviews, metrics, extraction settings. |
+| [`day-3-confidence-split/`](./screenshots/day-3-confidence-split/) | Confidence/completeness split: dashboard, metrics, settings, four representative cases. |
 
-### Confidence split UI — screenshot checklist (manual, same workflow as Day 3)
+### Documentation
 
-Headless `npm run reextract:all` was only for **terminal-based** backfill (no browser cookies). **Evidence and regression** should still follow the live app: sign in → **Re-extract** each case → capture UI. Use a new folder, e.g. [`docs/screenshots/day-4-2026-04-12-confidence-metrics/`](./screenshots/day-4-2026-04-12-confidence-metrics/), viewport **1920×1080** to match prior passes.
-
-| File (suggested) | What to show |
-|------------------|----------------|
-| `metrics-page-two-metrics.png` | Metrics: **Avg extraction confidence** + **Avg form completeness** cards (legacy footnote if no logprobs yet). |
-| `case-review-referral-letter-footer.png` | Referral case: source panel footer with **N/M fields** + **% extraction** or “re-extract” hint. |
-| `case-review-insurance-card-footer.png` | Insurance card case: high completeness mismatch vs extraction (sparse form). |
-| `case-review-handwritten-note-footer.png` | Handwritten note: **completeness** lower, extraction line readable. |
-| `case-review-clinical-progress-note-footer.png` | Clinical progress note: both badges visible. |
-| `dashboard-cases.png` | Optional: dashboard list after re-extract. |
-
-**Note:** Some extraction models on Google AI Studio return “Logprobs is not enabled”; the app then completes extraction with `extractionConfidence` null and the footer shows **“Extraction score: re-extract”** — screenshots are still valid evidence of the two-metric layout.
+- [`docs/extraction-confidence.md`](./extraction-confidence.md) — methodology, formula, provider limitations
+- [`docs/llm-model-decisions.md`](./llm-model-decisions.md) — model evaluations, pricing, decision history
+- [`docs/document-ai-ocr.md`](./document-ai-ocr.md) — OCR path and configuration

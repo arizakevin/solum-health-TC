@@ -297,7 +297,7 @@ solum-health-TC/
   docs/
     wireframes/                   # Pre-implementation wireframes (00–08)
     implementation-plan.md        # This file
-    WORKLOG.md                    # Daily work journal
+    DEVLOG.md                     # Daily development journal
     technical-challenge-master-prompt.md
   public/
     annie-avatar.webp
