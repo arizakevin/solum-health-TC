@@ -2,6 +2,7 @@ import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "next-themes";
+import { QueryProvider } from "@/components/query-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { APP_DESCRIPTION, APP_NAME } from "@/lib/brand";
@@ -33,10 +34,12 @@ export default function RootLayout({
 				suppressHydrationWarning
 			>
 				<ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-					<TooltipProvider>
-						{children}
-						<Toaster />
-					</TooltipProvider>
+					<QueryProvider>
+						<TooltipProvider>
+							{children}
+							<Toaster />
+						</TooltipProvider>
+					</QueryProvider>
 				</ThemeProvider>
 				<Analytics />
 			</body>

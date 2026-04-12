@@ -318,6 +318,14 @@ export async function runCaseExtractionPipeline(
 			await prisma.extractionField.createMany({ data: fieldRecords });
 		}
 
+		const extractedName =
+			(
+				extraction as Record<
+					string,
+					Record<string, { value?: string }> | undefined
+				>
+			)?.sectionA?.name?.value || null;
+
 		await prisma.case.update({
 			where: { id: caseId },
 			data: {
@@ -325,6 +333,7 @@ export async function runCaseExtractionPipeline(
 				rawExtraction: JSON.parse(JSON.stringify(extraction)),
 				finalFormData: JSON.parse(JSON.stringify(extraction)),
 				extractionConfidence,
+				patientName: extractedName,
 			},
 		});
 

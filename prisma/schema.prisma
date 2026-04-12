@@ -21,6 +21,7 @@ model Case {
   id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId                String   @map("user_id") @db.Uuid
   status                String   @default("Draft")
+  patientName           String?  @map("patient_name")
   rawExtraction         Json?    @map("raw_extraction")
   finalFormData         Json?    @map("final_form_data")
   /// Calibrated 0–100 extraction quality from model logprobs — Gemini primary, OpenAI fallback (see docs/extraction-confidence.md).

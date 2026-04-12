@@ -4,7 +4,7 @@ import { isDocumentAiConfigured } from "@/lib/document-ai/config";
 import { prisma } from "@/lib/prisma";
 import { CaseReviewClient } from "./case-review-client";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function CaseReviewPage({
 	params,

@@ -1,8 +1,105 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+
+/* ------------------------------------------------------------------ */
+/*  Paginated + filtered case list                                     */
+/* ------------------------------------------------------------------ */
+
+export interface CaseFilters {
+	search?: string;
+	status?: string;
+	dateFrom?: string;
+	dateTo?: string;
+	confidenceMin?: number;
+	confidenceMax?: number;
+}
+
+export interface CaseRow {
+	id: string;
+	patientName: string | null;
+	status: string;
+	documentCount: number;
+	extractionConfidence: number | null;
+	createdAt: string;
+}
+
+export interface PaginatedCases {
+	cases: CaseRow[];
+	total: number;
+	page: number;
+	pageSize: number;
+	pageCount: number;
+}
+
+export async function getCasesPage(
+	filters: CaseFilters = {},
+	page = 1,
+	pageSize = 20,
+): Promise<PaginatedCases> {
+	const safePage = Math.max(1, page);
+	const safeSize = Math.min(Math.max(1, pageSize), 100);
+
+	const where: Prisma.CaseWhereInput = {};
+
+	if (filters.search?.trim()) {
+		where.patientName = {
+			contains: filters.search.trim(),
+			mode: "insensitive",
+		};
+	}
+
+	if (filters.status) {
+		where.status = filters.status;
+	}
+
+	if (filters.dateFrom || filters.dateTo) {
+		where.createdAt = {};
+		if (filters.dateFrom) where.createdAt.gte = new Date(filters.dateFrom);
+		if (filters.dateTo) {
+			const to = new Date(filters.dateTo);
+			to.setHours(23, 59, 59, 999);
+			where.createdAt.lte = to;
+		}
+	}
+
+	if (filters.confidenceMin != null || filters.confidenceMax != null) {
+		where.extractionConfidence = {};
+		if (filters.confidenceMin != null)
+			where.extractionConfidence.gte = filters.confidenceMin;
+		if (filters.confidenceMax != null)
+			where.extractionConfidence.lte = filters.confidenceMax;
+	}
+
+	const [total, rows] = await Promise.all([
+		prisma.case.count({ where }),
+		prisma.case.findMany({
+			where,
+			orderBy: { createdAt: "desc" },
+			skip: (safePage - 1) * safeSize,
+			take: safeSize,
+			include: { _count: { select: { documents: true } } },
+		}),
+	]);
+
+	return {
+		cases: rows.map((c) => ({
+			id: c.id,
+			patientName: c.patientName,
+			status: c.status,
+			documentCount: c._count.documents,
+			extractionConfidence: c.extractionConfidence,
+			createdAt: c.createdAt.toISOString(),
+		})),
+		total,
+		page: safePage,
+		pageSize: safeSize,
+		pageCount: Math.max(1, Math.ceil(total / safeSize)),
+	};
+}
 
 export async function createCase() {
 	const supabase = await createClient();

@@ -43,10 +43,15 @@ export async function saveFormDraft(
 		});
 	}
 
+	const patientName =
+		(formData.sectionA as Record<string, { value?: string }> | undefined)?.name
+			?.value || null;
+
 	await prisma.case.update({
 		where: { id: caseId },
 		data: {
 			finalFormData: JSON.parse(JSON.stringify(formData)),
+			patientName,
 		},
 	});
 

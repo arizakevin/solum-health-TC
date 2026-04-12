@@ -7,21 +7,9 @@ import {
 	ListChecks,
 	TrendingUp,
 } from "lucide-react";
+import type { MetricsData } from "@/app/actions/metrics";
 import { RecentCorrectionsTable } from "@/components/recent-corrections-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-interface MetricsData {
-	totalCases: number;
-	/** Mean logprobs-based extraction confidence across cases that have it. */
-	avgExtractionConfidence: number;
-	/** True when no case had `extractionConfidence` yet (estimate from filled-field labels). */
-	extractionConfidenceIsLegacyEstimate: boolean;
-	/** Mean of per-case (filled fields / total fields) × 100. */
-	avgFormCompleteness: number;
-	fieldsCorrected: { count: number; total: number };
-	docsProcessed: number;
-	correctionsBySection: Record<string, { corrected: number; total: number }>;
-}
 
 const SECTION_NAMES: Record<string, string> = {
 	header: "Header",

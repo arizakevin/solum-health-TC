@@ -1,43 +1,12 @@
 import { Plus } from "lucide-react";
 import { redirect } from "next/navigation";
-import { createCase } from "@/app/actions/cases";
-import { CaseListTable } from "@/components/case-list-table";
+import { Suspense } from "react";
+import { createCase, getCasesPage } from "@/app/actions/cases";
+import { DashboardClient } from "@/components/dashboard-client";
 import { Button } from "@/components/ui/button";
-import { prisma } from "@/lib/prisma";
-
-export const dynamic = "force-dynamic";
-
-async function getCases() {
-	try {
-		const cases = await prisma.case.findMany({
-			orderBy: { createdAt: "desc" },
-			include: {
-				_count: { select: { documents: true } },
-			},
-		});
-
-		return cases.map((c: (typeof cases)[number]) => {
-			const formData = c.finalFormData as Record<string, unknown> | null;
-			const sectionA = formData?.sectionA as
-				| Record<string, { value?: string }>
-				| undefined;
-			const patientName = sectionA?.name?.value ?? null;
-
-			return {
-				id: c.id,
-				patientName,
-				status: c.status,
-				documentCount: c._count.documents,
-				createdAt: c.createdAt,
-			};
-		});
-	} catch {
-		return [];
-	}
-}
 
 export default async function DashboardPage() {
-	const cases = await getCases();
+	const initialData = await getCasesPage({}, 1, 20);
 
 	return (
 		<div>
@@ -64,7 +33,9 @@ export default async function DashboardPage() {
 				</form>
 			</div>
 
-			<CaseListTable cases={cases} />
+			<Suspense>
+				<DashboardClient initialData={initialData} />
+			</Suspense>
 		</div>
 	);
 }
