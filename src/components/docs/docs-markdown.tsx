@@ -8,7 +8,10 @@ import {
 	type ReactNode,
 } from "react";
 import ReactMarkdown from "react-markdown";
+import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import "katex/dist/katex.min.css";
 import { MermaidDiagram } from "@/components/docs/mermaid-diagram";
 import { docRelPathToHref } from "@/lib/docs/doc-href";
 import { posixDirname, posixJoin } from "@/lib/docs/posix-path";
@@ -68,7 +71,8 @@ export function DocsMarkdown({ content, docRelFromDocs }: DocsMarkdownProps) {
 	return (
 		<div className={MD_CLASS}>
 			<ReactMarkdown
-				remarkPlugins={[remarkGfm]}
+				remarkPlugins={[remarkGfm, remarkMath]}
+				rehypePlugins={[rehypeKatex]}
 				components={{
 					pre({ children }: ComponentProps<"pre">): ReactNode {
 						try {

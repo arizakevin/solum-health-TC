@@ -4,30 +4,25 @@
 
 ```mermaid
 flowchart TD
-    classDef milestone fill:#e2e8f0,stroke:#64748b,stroke-width:2px,color:#0f172a,font-weight:bold;
-    classDef task fill:#f1f5f9,stroke:#94a3b8,stroke-width:1px,color:#334155;
-
-    Start((Challenge & Requirements)) --> Plan{Day 1: Planning}
+    Start(("Challenge &<br/>Requirements")) --> Plan{"Day 1:<br/>Planning"}
     
-    Plan --> |Wireframes & Stack Choices| Arch[Architecture & Implementation Plan]:::task
-    Arch --> MVP{Day 2: MVP Core}
+    Plan --> |"Wireframes &<br/>Stack Choices"| Arch["Architecture &<br/>Implementation Plan"]
+    Arch --> MVP{"Day 2:<br/>MVP Core"}
     
-    MVP --> |Supabase & Prisma| DB[Robust Database & Auth Setup]:::task
-    DB --> |Gemini SDK & Zod| Extract[Structured Extraction Foundation]:::task
-    Extract --> |Metrics & Edits| Review[Case Review UI & Data Binding]:::task
-    Review --> Expand{Day 3: Expansion & UX}
+    MVP --> |"Supabase &<br/>Prisma"| DB["Robust Database<br/>& Auth Setup"]
+    DB --> |"Gemini SDK<br/>& Zod"| Extract["Structured Extraction<br/>Foundation"]
+    Extract --> |"Metrics &<br/>Edits"| Review["Case Review UI<br/>& Data Binding"]
+    Review --> Expand{"Day 3:<br/>Expansion & UX"}
     
-    Expand --> |TanStack & Responsiveness| Dash[Dashboard Filters & Mobile Polish]:::task
-    Dash --> |Metric isolation| Data[Completeness vs Confidence Split]:::task
-    Data --> |Zustand| Tour[Guided Interactive Tutorial]:::task
-    Tour --> Polish{Day 4: Hardening}
+    Expand --> |"TanStack &<br/>Responsiveness"| Dash["Dashboard Filters<br/>& Mobile Polish"]
+    Dash --> |"Metric<br/>isolation"| Data["Completeness vs<br/>Confidence Split"]
+    Data --> |"Zustand"| Tour["Guided Interactive<br/>Tutorial"]
+    Tour --> Polish{"Day 4:<br/>Hardening"}
 
-    Polish --> |Dual-fallback| OpenAI[OpenAI Streaming & Live Docs]:::task
-    OpenAI --> |Token cost savings| Filter[AI Invalid-Document Rejection]:::task
-    Filter --> |Vercel boundaries| UI[4.5MB Payload Caps & Error UX]:::task
-    UI --> |Browser Subagent E2E| Prod(((Final Vercel Deployment)))
-
-    class Start,Plan,MVP,Expand,Polish,Prod milestone;
+    Polish --> |"Dual<br/>fallback"| OpenAI["OpenAI Streaming<br/>& Live Docs"]
+    OpenAI --> |"Token cost<br/>savings"| Filter["AI Invalid-Document<br/>Rejection"]
+    Filter --> |"Vercel<br/>boundaries"| UI["4.5MB Payload Caps<br/>& Error UX"]
+    UI --> |"Browser<br/>Subagent E2E"| Prod((("Final<br/>Vercel Deployment")))
 ```
 
 ---
