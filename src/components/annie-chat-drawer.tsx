@@ -2,7 +2,7 @@
 
 import { Send, Trash2, XIcon } from "lucide-react";
 import Image from "next/image";
-import { useParams } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,20 @@ import {
 } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 import { useUIStore } from "@/stores/ui-store";
+
+/** Routes where the floating assistant trigger is not shown. */
+function assistantHiddenForPathname(pathname: string | null): boolean {
+	if (!pathname) {
+		return false;
+	}
+	if (pathname === "/docs" || pathname.startsWith("/docs/")) {
+		return true;
+	}
+	if (pathname === "/metrics" || pathname.startsWith("/metrics/")) {
+		return true;
+	}
+	return false;
+}
 
 /** Avoids Base UI `AvatarImage`, which preloads with `new Image()` and can leave the root stuck on fallback while the same URL works in the real image. */
 function AnnieAvatar({
@@ -96,6 +110,8 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 }
 
 export function AnnieChatDrawer() {
+	const pathname = usePathname();
+	const hidden = assistantHiddenForPathname(pathname);
 	const { annieDrawerOpen, setAnnieDrawerOpen } = useUIStore();
 	const params = useParams<{ id?: string }>();
 	const caseId = params?.id;
@@ -103,6 +119,12 @@ export function AnnieChatDrawer() {
 		useAnnieChat(caseId);
 	const [input, setInput] = useState("");
 	const scrollRef = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		if (hidden) {
+			setAnnieDrawerOpen(false);
+		}
+	}, [hidden, setAnnieDrawerOpen]);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: scroll on message changes
 	useEffect(() => {
@@ -117,6 +139,10 @@ export function AnnieChatDrawer() {
 		if (!trimmed || isLoading) return;
 		setInput("");
 		sendMessage(trimmed);
+	}
+
+	if (hidden) {
+		return null;
 	}
 
 	return (

@@ -1,5 +1,5 @@
-import type { Content } from "@google/genai";
-import { getAssistantModelId, getGeminiClient } from "@/lib/ai/gemini";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import { getAssistantOpenAIModelId, getOpenAIClient } from "@/lib/ai/openai";
 import { extractionFieldGroupKey } from "@/lib/corrections/field-group";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
@@ -55,30 +55,30 @@ ${formData ? `- Form data preview: ${JSON.stringify(formData).slice(0, 500)}...`
 			}
 		}
 
-		const contents: Content[] = messages.map(
-			(msg: { role: string; content: string }) => ({
-				role: msg.role === "assistant" ? "model" : "user",
-				parts: [{ text: msg.content }],
+		const chatMessages: ChatCompletionMessageParam[] = [
+			{ role: "system", content: SYSTEM_PROMPT + caseContext },
+			...(messages as { role: string; content: string }[]).map((msg) => {
+				const role =
+					msg.role === "assistant" ? ("assistant" as const) : ("user" as const);
+				return { role, content: msg.content };
 			}),
-		);
+		];
 
-		const ai = getGeminiClient();
-		const response = await ai.models.generateContentStream({
-			model: getAssistantModelId(),
-			contents,
-			config: {
-				systemInstruction: SYSTEM_PROMPT + caseContext,
-				temperature: 0.7,
-				maxOutputTokens: 1024,
-			},
+		const client = getOpenAIClient();
+		const stream = await client.chat.completions.create({
+			model: getAssistantOpenAIModelId(),
+			messages: chatMessages,
+			stream: true,
+			temperature: 0.7,
+			max_tokens: 1024,
 		});
 
 		const encoder = new TextEncoder();
-		const stream = new ReadableStream({
+		const readable = new ReadableStream({
 			async start(controller) {
 				try {
-					for await (const chunk of response) {
-						const text = chunk.text ?? "";
+					for await (const chunk of stream) {
+						const text = chunk.choices[0]?.delta?.content ?? "";
 						if (text) {
 							controller.enqueue(
 								encoder.encode(`data: ${JSON.stringify({ text })}\n\n`),
@@ -98,7 +98,7 @@ ${formData ? `- Form data preview: ${JSON.stringify(formData).slice(0, 500)}...`
 			},
 		});
 
-		return new Response(stream, {
+		return new Response(readable, {
 			headers: {
 				"Content-Type": "text/event-stream",
 				"Cache-Control": "no-cache",

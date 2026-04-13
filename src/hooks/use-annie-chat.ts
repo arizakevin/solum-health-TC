@@ -75,7 +75,21 @@ export function useAnnieChat(caseId?: string) {
 							const data = line.slice(6);
 							if (data === "[DONE]") break;
 							try {
-								const parsed = JSON.parse(data);
+								const parsed = JSON.parse(data) as {
+									text?: string;
+									error?: string;
+								};
+								if (parsed.error) {
+									accumulated = parsed.error;
+									setMessages((prev) =>
+										prev.map((m) =>
+											m.id === assistantMsg.id
+												? { ...m, content: accumulated }
+												: m,
+										),
+									);
+									break;
+								}
 								if (parsed.text) {
 									accumulated += parsed.text;
 									setMessages((prev) =>

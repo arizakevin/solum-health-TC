@@ -16,5 +16,4 @@ export const APP_DESCRIPTION =
 export const APP_ASSISTANT_NAME = "Annie";
 /** Public path; keep in sync with `public/annie-avatar.png` */
 export const APP_ASSISTANT_AVATAR_SRC = "/annie-avatar.png";
-export const APP_ASSISTANT_SUBTITLE =
-	"AI Case Assistant · Powered by Gemini Flash";
+export const APP_ASSISTANT_SUBTITLE = "AI Case Assistant · Powered by OpenAI";
