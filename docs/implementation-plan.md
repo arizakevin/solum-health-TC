@@ -140,7 +140,7 @@ Pre-implementation wireframes live in `docs/wireframes/`. Each phase below refer
 | 00 | Navigation Flow | — | All |
 | 01 | App Shell / Layout | `layout.tsx` | Phase 1 |
 | 02 | Dashboard / Case List | `/` | Phase 2a |
-| 03 | Upload Documents | `/upload` | Phase 2a |
+| 03 | Upload Documents | `/case/[id]` (source docs panel) | Phase 2a |
 | 04 | Case Review & Form | `/case/[id]` | Phase 2b–2d |
 | 05 | Annie Drawer | Sheet on `/case/[id]` | Phase 4 |
 | 06 | PDF Preview | `/case/[id]/pdf` | Phase 2e |
@@ -173,7 +173,7 @@ Initial commit with planning artifacts before any code. Demonstrates a plan-firs
 - Copy `annie-avatar.webp` to `public/`
 - Zustand store skeleton (UI state, `persist` to localStorage)
 - Brand: CSS variables in `globals.css` matched to Solum palette. `next/font` for typography.
-- **App shell layout** per wireframe 01: top nav bar (logo, Dashboard/Upload/Metrics links, user avatar, sign-out)
+- **App shell layout** per wireframe 01: top nav bar (logo, Dashboard/Metrics/Docs links, user avatar, sign-out)
 - Deploy skeleton to Vercel
 - **Branch**: `phase/1-scaffold`
 
@@ -184,11 +184,11 @@ The core deliverable. Most time goes here.
 **2a. Document Upload + Dashboard**
 > Wireframes: 02 (Dashboard), 03 (Upload), 00 (Navigation Flow)
 
-- **Dashboard** (`/`): Case list table with columns per wireframe 02 — Case ID, Patient Name, Status badge, Documents count, Created date, View action. "+ New Case" button creates a draft case (status: `Draft`) and navigates to `/upload?caseId=xxx`.
+- **Dashboard** (`/`): Case list table with columns per wireframe 02 — Case ID, Patient Name, Status badge, Documents count, Created date, View action. "+ New Case" button creates a draft case (status: `Draft`) and navigates to `/case/[id]`.
 - **Status badges**: Draft → Extracting → In Review → Completed
-- **Upload page** (`/upload`): Drag-and-drop zone + "Browse Files" button per wireframe 03. Accept PDF, PNG, JPG, TIFF. Upload queue shows per-file progress bars with filename and size.
+- **Document upload** (wireframe 03, on Case Review): Source Documents panel on `/case/[id]` provides drag-and-drop + file picker per wireframe 03. Accept PDF, PNG, JPG, TIFF. Upload queue shows per-file progress bars with filename and size.
 - Upload files to Supabase Storage, save document records to Postgres via Prisma (linked to case).
-- **"Extract All" button**: disabled until all uploads complete. Triggers `/api/extract` for each document. Status indicators change to "Extracting..." with a loading state. On completion, auto-redirect to `/case/[id]` (Case Review).
+- **"Extract All"** (from case review): disabled until uploads complete as required. Triggers `/api/extract` for each document. Status indicators change to "Extracting..." with a loading state. On completion, user remains on `/case/[id]` (Case Review).
 
 **2b. Extraction Pipeline** (`/api/extract`)
 - Extract text layer via `pdfjs-dist`
@@ -306,8 +306,7 @@ solum-health-TC/
       layout.tsx                  # App shell: top nav, Annie FAB — wireframe 01
       page.tsx                    # Dashboard / case list — wireframe 02
       sign-in/page.tsx            # Auth page — wireframe 08
-      upload/page.tsx             # Document upload — wireframe 03
-      case/[id]/page.tsx          # Case review + form — wireframe 04
+      case/[id]/page.tsx          # Case review + form + upload (wireframes 03–04)
       case/[id]/pdf/page.tsx      # PDF preview — wireframe 06
       metrics/page.tsx            # Accuracy metrics — wireframe 07
       api/
@@ -317,9 +316,8 @@ solum-health-TC/
     components/
       ui/                         # shadcn components (auto-generated)
       app-nav.tsx                 # Top navigation bar
-      upload-dropzone.tsx         # Drag-drop + file picker + upload queue
       case-list-table.tsx         # Dashboard table with status badges
-      source-documents-panel.tsx  # Left column: doc tabs + preview + re-extract
+      source-documents-panel.tsx  # Left column: upload, doc tabs + preview + re-extract
       service-request-form.tsx    # Right column: sections A–G accordion
       form-field.tsx              # Confidence-aware field wrapper (green/yellow/red)
       form-section.tsx            # Collapsible accordion section
@@ -362,7 +360,7 @@ solum-health-TC/
 | **Document extraction** | `gemini-3.1-pro-preview` | Flagship; best multimodal accuracy, native structured output |
 | **Annie assistant** | `gemini-3-flash-preview` | Fast streaming, low latency for chat UX |
 
-Single provider (`@google/genai`). Env variables: `GEMINI_API_KEY`, `EXTRACTION_MODEL_ID`, `ASSISTANT_MODEL_ID`.
+Historical note: env vars evolved to OpenAI-default extraction + `EXTRACTION_GEMINI_MODEL_ID` when using Gemini extraction (`EXTRACTION_PROVIDER=gemini`).
 
 ## Risk Register
 

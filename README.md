@@ -1,12 +1,12 @@
 # Solum Health — AI Service Request Processor
 
-An AI-powered healthcare document extraction system that automates service request form completion using Google Gemini, with human-in-the-loop review and correction tracking.
+An AI-powered healthcare document extraction system that automates service request form completion using **OpenAI** by default for extraction, case confidence, and the in-app assistant (Annie), with optional alternate extraction providers and human-in-the-loop review.
 
 ## Documentation
 
 All long-form docs live under **[`docs/`](docs/)**. Start from the hub index **[`docs/README.md`](docs/README.md)** for a categorized map (architecture, AI pipeline, OCR, challenge notes, wireframes, dev log, Cursor/agent material).
 
-**Quick links:** [Implementation plan](docs/implementation-plan.md) · [Wireframes](docs/wireframes/README.md) · [Document AI OCR](docs/document-ai-ocr.md) · [LLM model decisions](docs/llm-model-decisions.md) · [Extraction confidence](docs/extraction-confidence.md) · [Dev log](docs/DEVLOG.md) · [AI tooling](docs/ai-tooling.md) · [Agent rules & skills](docs/agent/README.md)
+**Quick links:** [Implementation plan](docs/implementation-plan.md) · [Wireframes](docs/wireframes/README.md) · [Document AI OCR](docs/document-ai-ocr.md) · [Extraction architecture](docs/extraction-architecture.md) · [LLM model decisions](docs/llm-model-decisions.md) · [Extraction confidence](docs/extraction-confidence.md) · [Dev log](docs/DEVLOG.md) · [AI tooling](docs/ai-tooling.md) · [Agent rules & skills](docs/agent/README.md)
 
 ## Live Demo
 
@@ -22,10 +22,9 @@ All long-form docs live under **[`docs/`](docs/)**. Start from the hub index **[
 - PDF text extraction via `pdfjs-dist` as OCR fallback
 
 ### AI-Powered Extraction
-- **Gemini structured output** with JSON schema enforcement
-- Extracts all fields for service request form sections A–G
-- Per-field **confidence labels** (high / medium / low) with visual indicators
-- **Case-level extraction confidence** from token log-probabilities (`avgLogprobs`), stored separately from **form completeness** (filled ÷ total fields) — see [`docs/extraction-confidence.md`](docs/extraction-confidence.md)
+- **Default:** OpenAI extraction (`gpt-4o-mini`) — structured JSON and case-level confidence from **logprobs in one call** when returned; optional verifier if not. See [`docs/extraction-architecture.md`](docs/extraction-architecture.md).
+- Sections A–G; per-field **high / medium / low** labels; case **confidence** vs **completeness** — [`docs/extraction-confidence.md`](docs/extraction-confidence.md)
+- Optional **`EXTRACTION_PROVIDER`** overrides (Gemini / Anthropic) for non-default deployments
 - Multi-document cross-referencing for higher accuracy
 
 ### Human-in-the-Loop Review
@@ -41,7 +40,7 @@ All long-form docs live under **[`docs/`](docs/)**. Start from the hub index **[
 - Regeneration support
 
 ### Annie — AI Case Assistant
-- Gemini Flash-powered streaming chat
+- OpenAI streaming chat (default `gpt-4o-mini`; override with `ASSISTANT_MODEL_ID`)
 - Healthcare domain knowledge (CPT codes, ICD-10, prior auth)
 - **Case-aware context**: loads current case data when chatting from a case page
 - Floating drawer UI with message history
@@ -68,7 +67,7 @@ All long-form docs live under **[`docs/`](docs/)**. Start from the hub index **[
 | Auth | Supabase Auth (email/password) |
 | Database | Supabase Postgres + Prisma 7 ORM |
 | Storage | Supabase Storage |
-| AI | Google Gemini 3.x (`@google/genai` SDK) — see [`docs/llm-model-decisions.md`](docs/llm-model-decisions.md) |
+| AI | OpenAI (default extraction, confidence, Annie); optional Gemini/Anthropic extraction — [`docs/extraction-architecture.md`](docs/extraction-architecture.md) |
 | PDF | `@react-pdf/renderer` (server-side) |
 | OCR | `pdfjs-dist` (text extraction); optional **Cloud Document AI** — see [`docs/document-ai-ocr.md`](docs/document-ai-ocr.md) |
 | Linting | Biome 2.4, Husky, lint-staged |
@@ -90,7 +89,7 @@ src/
 │   ├── sign-in/page.tsx        # Auth page
 │   ├── auth/callback/route.ts  # OAuth callback
 │   ├── api/
-│   │   ├── extract/route.ts    # Gemini extraction pipeline
+│   │   ├── extract/route.ts    # Case extraction (server)
 │   │   ├── generate-pdf/route.ts
 │   │   └── assistant/route.ts  # Annie streaming chat
 │   └── layout.tsx              # Root layout
@@ -103,7 +102,6 @@ src/
 │   ├── metrics-dashboard.tsx
 │   ├── service-request-form.tsx
 │   ├── source-documents-panel.tsx
-│   ├── upload-dropzone.tsx
 │   └── ui/                     # shadcn components
 ├── hooks/
 │   └── use-annie-chat.ts
@@ -170,23 +168,22 @@ npm run dev
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase publishable key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server-side only) |
 | `DATABASE_URL` | Supabase Postgres connection string (use the pooled URL from Dashboard > Settings > Database) |
-| `GEMINI_API_KEY` | Google AI Studio API key — powers extraction + Annie chat |
+| `OPENAI_API_KEY` | OpenAI API key — default **extraction** (structured JSON + logprobs), optional confidence verifier, and **Annie** streaming chat |
 
-**Recommended** — extraction works without these, but confidence scoring will be `null`:
+**Optional** — tuning and non-default providers:
 
 | Variable | Description |
 |----------|-------------|
-| `OPENAI_API_KEY` | OpenAI key for logprobs confidence fallback — see [`docs/extraction-confidence.md`](docs/extraction-confidence.md) |
-| `CONFIDENCE_MODEL_ID` | Confidence fallback model (default: `gpt-4o-mini`) |
+| `EXTRACTION_PROVIDER` | Default `openai`. Set `gemini` or `anthropic` only if you switch extraction backend — see [`docs/extraction-architecture.md`](docs/extraction-architecture.md) |
+| `GEMINI_API_KEY` | Required only when `EXTRACTION_PROVIDER=gemini` |
+| `ANTHROPIC_API_KEY` | Required only when `EXTRACTION_PROVIDER=anthropic` |
+| `CONFIDENCE_MODEL_ID` | OpenAI model for verifier pass when primary logprobs are missing (default `gpt-4o-mini`) |
+| `EXTRACTION_OPENAI_MODEL_ID` | OpenAI extraction model (default `gpt-4o-mini`) |
+| `ASSISTANT_MODEL_ID` | OpenAI model id for Annie (default `gpt-4o-mini`) |
+| `EXTRACTION_GEMINI_MODEL_ID` | Gemini extraction model when using `EXTRACTION_PROVIDER=gemini` (deprecated alias: `EXTRACTION_MODEL_ID`) |
+| `EXTRACTION_ANTHROPIC_MODEL_ID` | Anthropic extraction model when using `EXTRACTION_PROVIDER=anthropic` |
 
-**Optional model overrides** — sensible defaults are used when omitted:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `EXTRACTION_MODEL_ID` | `gemini-3-flash-preview` | Extraction model — see [`docs/llm-model-decisions.md`](docs/llm-model-decisions.md) |
-| `ASSISTANT_MODEL_ID` | `gemini-3-flash-preview` | Annie chat model |
-
-**Optional — Document AI OCR** — enables dedicated OCR for scanned/handwritten documents. Without these, Gemini handles OCR natively (still works, but less accurate on handwriting). See [`docs/document-ai-ocr.md`](docs/document-ai-ocr.md):
+**Optional — Document AI OCR** — dedicated OCR for scanned/handwritten PDFs; without it, `pdfjs-dist` text still feeds the extraction model. See [`docs/document-ai-ocr.md`](docs/document-ai-ocr.md):
 
 | Variable | Description |
 |----------|-------------|
@@ -198,15 +195,15 @@ npm run dev
 
 ## Design Decisions
 
-1. **Gemini structured output over prompt-and-parse**: Using `responseMimeType: "application/json"` with `responseSchema` guarantees valid JSON matching our Zod schema, eliminating parsing failures.
+1. **Structured extraction on the default path**: OpenAI Chat Completions with `response_format` JSON schema (non-strict) plus Zod validation; optional Gemini/Anthropic paths keep equivalent validation.
 
 2. **Correction tracking at field level**: Each `ExtractionField` record stores both `autoValue` (original AI extraction) and `finalValue` (after human review), with a `wasCorrected` flag. This enables per-field and per-section accuracy metrics.
 
-3. **Three-layer OCR + extraction pipeline**: `pdfjs-dist` handles text-layer PDFs locally; **Cloud Document AI** provides dedicated OCR for scanned documents, handwriting, and images; **Gemini** receives the pre-extracted text plus the original file for structured form mapping. This separation lets the extraction model focus on reasoning rather than pixel-level text recovery — see [`docs/document-ai-ocr.md`](docs/document-ai-ocr.md).
+3. **Three-layer OCR + extraction pipeline**: `pdfjs-dist` handles text-layer PDFs locally; **Cloud Document AI** adds OCR for scans and handwriting; the configured **LLM** receives text plus multimodal parts for form mapping — see [`docs/document-ai-ocr.md`](docs/document-ai-ocr.md).
 
-4. **Right-sized models per task**: Flash for extraction and Annie chat ($0.50/1M input) — best quality for complex medical forms. Flash-Lite ($0.10/1M) documented as a cost-optimized alternative. Pro evaluated and rejected as overkill when Document AI handles OCR — see [`docs/llm-model-decisions.md`](docs/llm-model-decisions.md).
+4. **Right-sized models**: Default **`gpt-4o-mini`** for extraction, verifier (when needed), and Annie; **`gpt-4o`** is a documented upgrade for heavier PDFs or richer chat — see [`docs/llm-model-decisions.md`](docs/llm-model-decisions.md).
 
-5. **Dual-provider confidence scoring**: Extraction confidence is derived from token log-probabilities, not heuristic per-field labels. Gemini logprobs are tried first; if unavailable (a [known Gemini limitation](https://discuss.ai.google.dev/t/logprobs-is-not-enabled-for-gemini-models/107989)), a lightweight OpenAI GPT-4o-mini re-emission provides the score at < $0.001/call — see [`docs/extraction-confidence.md`](docs/extraction-confidence.md).
+5. **Case-level confidence**: On the OpenAI default path, logprobs from the primary completion drive **`extractionConfidence`** when present; otherwise a small OpenAI verifier pass fills the score — see [`docs/extraction-confidence.md`](docs/extraction-confidence.md).
 
 6. **Server-side PDF generation**: Using `@react-pdf/renderer` on the server avoids client-side bundle bloat and enables consistent rendering.
 

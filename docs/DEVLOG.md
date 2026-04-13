@@ -56,7 +56,7 @@ Screenshots below serve as **documented evidence** of the app's working state af
 ### What shipped (summary)
 
 - Extraction reliability: shared extraction path; fixed unauthenticated internal `fetch` / HTML-as-JSON failure class.
-- Dev/deploy hygiene: stable local dev (`next dev --webpack`); session refresh via Next **proxy** (`proxy.ts`).
+- Dev/deploy hygiene: local dev defaults to `next dev` (Turbopack on Next 16); use `pnpm dev:webpack` only if needed — Webpack can error on `next/font` CSS extraction (`mini-css-extract-plugin`). Session refresh via Next **proxy** (`proxy.ts`).
 - Case lifecycle: delete / bulk delete; source documents UX; auto-extract after upload where applicable.
 - UX: Annie drawer layout and scrolling; form section completion hints; PDF page layout; metrics corrections pagination and readable field labels.
 - Branding: **AuthScribe by Solum Health** in config, nav, assistant prompt, PDF footer.
@@ -85,7 +85,7 @@ _Results from running each sample PDF (01–06) through the production extractio
 - **Mobile responsiveness** — shipped in **Day 3 · session 3** (nav hamburger, dashboard/metrics tables, case review, Annie drawer, PDF toolbar, corrections table). See that session below.
 - **Annie — full app actions**: implement server-validated tooling so the assistant can perform the same operations a user can (forms, navigation, extraction, deletes, etc.); consider a **more capable Gemini model** for that mode because tool-use and multi-step reasoning are harder than read-only Q&A.
 - **Annie settings** in-panel: which categories of actions are allowed (sensible defaults: on).
-- **Guided in-app tutorial** — shipped in **Day 3 · session 4** (`.cursor/plans/guided_in-app_tutorial_31e6596c.plan.md`): welcome on first dashboard visit, five-step tour with DOM targets, non-blocking overlay, manual navigation keeps step in sync, **Restart guided tour** in nav. See session 4 below.
+- **Guided in-app tutorial** — shipped in **Day 3 · session 4** (`.cursor/plans/guided_in-app_tutorial_31e6596c.plan.md`): welcome on first dashboard visit, seven-step tour with DOM targets, non-blocking overlay, manual navigation keeps step in sync, **Restart guided tour** in nav. See session 4 below.
 - **Dashboard filters / pagination** — shipped in **Day 3 · session 3** (`patientName` column, TanStack Query + URL state, server-side `getCasesPage`, metrics aggregation refactor). Deeper / graph-style exploration still backlog.
 - **Extraction / OCR quality gate**: structured evaluation on sample PDFs `01`–`06` (evidence via real UI runs; screenshots under `docs/screenshots/day-2-2026-04-11-mvp-basic-working-product/` for the first MVP QA pass — numbers from the app's aggregate confidence logic after extraction).
 - **Docs**: optional in-app or linked docs site.
@@ -228,7 +228,7 @@ Entries for this calendar day are grouped into **sessions** (numbered in chronol
 
 - **Stack:** Zustand + `persist` (`authscribe-tutorial`, `hasSeenTutorial` only) in `src/stores/tutorial-store.ts`; no tour library dependency.
 - **UI:** `TutorialOverlay` — floating step card positioned from `getBoundingClientRect`, `ResizeObserver` + scroll/resize; **Next** / **Skip**; `aria-modal="false"` so the page stays usable (no full-screen dim or blur).
-- **Orchestration:** `TutorialManager` — five steps (dashboard list → new case → case review grid → approve PDF → metrics cards), `router.push` when **Next** advances across routes; pathname sync so if the user navigates themselves (e.g. Metrics, open a case), the tour step realigns; “Create a case first” dialog when steps 3–4 need a case and none exists.
+- **Orchestration:** `TutorialManager` — seven steps (dashboard list → new case → source documents upload → run extraction → case review grid → approve PDF → metrics cards), `router.push` when **Next** advances across routes; pathname sync so if the user navigates themselves (e.g. Metrics, open a case), the tour step realigns; “Create a case first” dialog when any case-page step needs a case and none exists.
 - **Mount:** `(app)` layout so the tour survives in-app navigation.
 - **Discoverability:** Welcome dialog (“Take a quick tour” / Skip); **Restart guided tour** in mobile hamburger and desktop avatar menus (`GraduationCap`).
 
@@ -277,3 +277,42 @@ Entries for this calendar day are grouped into **sessions** (numbered in chronol
 - **Multiset comparison, not ordered join** — clinical array fields (ICD-10 code lists) have no meaningful order; any order-sensitive comparison was guaranteed to create noise.
 - **Case-insensitive everywhere** — medical text conventions vary (capitalisation, trailing periods); normalisation prevents trivial saves from generating false corrections.
 - **One-time script, not a migration** — the legacy fix is idempotent and safe to re-run; data self-heals on the next user save anyway, so no schema change was needed.
+
+---
+
+## Day 4 — April 13, 2026
+
+### Session 1 — OpenAI-first extraction, Annie, case UX, loading, in-app docs
+
+**Time spent:** ~9 hours (single long session).
+
+#### Extraction and AI
+
+- **Default provider OpenAI** (`EXTRACTION_PROVIDER` optional): structured JSON + logprobs on the primary call when returned; modular `build-extraction-parts`, OpenAI / Gemini / Anthropic runners, format adapters.
+- **Deferred case confidence:** optional sync verifier via `EXTRACTION_SYNC_OPENAI_CONFIDENCE`; client `finalizeExtractionConfidence` when extraction returns `confidenceFollowUp: "openai"`.
+- **Annie** moved to **OpenAI Chat Completions streaming** (same `OPENAI_API_KEY` as extraction); `ASSISTANT_MODEL_ID` is an OpenAI model id (default `gpt-4o-mini`).
+- **Env clarity:** `.env.example` trimmed to essentials; `EXTRACTION_GEMINI_MODEL_ID` for Gemini extraction (deprecated read of `EXTRACTION_MODEL_ID`); `scripts/reextract-all-cases.ts` validates API keys per active provider.
+- **`pnpm bench:extraction`** — `scripts/benchmark-extraction-models.ts` for latency across providers (see script header).
+
+#### Case review and documents
+
+- **Upload** consolidated into case **source documents** flow; removed standalone `/upload` route and shared `upload-dropzone` in favor of case-scoped upload + preview (`document-preview-dialog` / `document-preview-frame`).
+- **Source documents panel** and **case review client** rework: loading for extraction confidence, layout polish, integration with deferred confidence and settings.
+- **`GET /api/case-documents/[documentId]`** for authenticated document bytes (preview/download paths).
+
+#### Tutorial and global UX
+
+- **Guided tour** refinements: `tutorial-steps`, `tutorial-tour-signals-store`, overlay/manager behavior aligned with case flow and form preview helper.
+- **Route-level `loading.tsx`** (app shell, case, case PDF, metrics, in-app docs), **`NavigationProgress`**, **`AppLoadingPulse`** in root layout for perceived performance.
+
+#### In-app documentation
+
+- **`/docs/[[...path]]`** with sidebar, markdown rendering (incl. Mermaid), GitHub banner; **`src/lib/docs`** path/sidebar helpers; **`GET /api/docs-media/...`** for images under `docs/`.
+
+#### Documentation (repo `docs/`)
+
+- **`docs/extraction-architecture.md`** — defaults and provider story; slimmed **extraction-confidence**, **llm-model-decisions**, **README** index; README env tables aligned with OpenAI-first stack; wireframes note for Annie/OpenAI.
+
+#### Backlog (not shipped)
+
+- **Synthetic extraction test corpus:** dynamically generate many document variants from the original sample set (fictitious patients, mixed document types) via a custom pipeline, then batch-run extraction quality metrics — planned for a later session.

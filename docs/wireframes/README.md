@@ -8,7 +8,7 @@ Pre-implementation wireframes covering every page, overlay, and the overall navi
 
 ![Navigation Flow](./00-navigation-flow.png)
 
-**Routes and transitions between all pages.** Entry via `/sign-in`, hub at the Dashboard (`/`), branching to Upload, Case Review, Metrics, and PDF Preview. The Annie drawer is a sheet overlay on the Case Review page.
+**Routes and transitions between all pages.** Entry via `/sign-in`, hub at the Dashboard (`/`), branching to Case Review (including document upload), Metrics, Docs, and PDF Preview. The Annie drawer is a sheet overlay on the Case Review page.
 
 ---
 
@@ -16,7 +16,7 @@ Pre-implementation wireframes covering every page, overlay, and the overall navi
 
 ![App Shell](./01-app-shell-layout.png)
 
-**Shared layout wrapping all authenticated pages.** Top navigation bar with logo, nav links (Dashboard, Upload, Metrics), user avatar, and sign-out. The Annie floating action button lives in the bottom-right corner of the content area and opens the chat drawer.
+**Shared layout wrapping all authenticated pages.** Top navigation bar with logo, nav links (Dashboard, Metrics, Docs), user avatar, and sign-out. The Annie floating action button lives in the bottom-right corner of the content area and opens the chat drawer.
 
 ---
 
@@ -24,7 +24,7 @@ Pre-implementation wireframes covering every page, overlay, and the overall navi
 
 ![Dashboard](./02-dashboard-case-list.png)
 
-**Landing page after sign-in (`/`).** Shows all service request cases in a table with Case ID, Patient Name, Status badge, document count, creation date, and a View action. The "+ New Case" button navigates to the Upload page. Status flow: Draft → Extracting → In Review → Completed.
+**Landing page after sign-in (`/`).** Shows all service request cases in a table with Case ID, Patient Name, Status badge, document count, creation date, and a View action. The "+ New Case" button creates a draft and navigates to Case Review for that case. Status flow: Draft → Extracting → In Review → Completed.
 
 ---
 
@@ -32,7 +32,7 @@ Pre-implementation wireframes covering every page, overlay, and the overall navi
 
 ![Upload](./03-upload-page.png)
 
-**Document upload page (`/upload`).** Drag-and-drop zone accepting PDF, PNG, JPG, and TIFF files. An upload queue below shows progress per file. Once all uploads complete, the "Extract All" button triggers the `/api/extract` pipeline for each document, then redirects to the Case Review page.
+**Document upload (Case Review).** Implemented on `/case/[id]` in the Source Documents panel: drag-and-drop zone accepting PDF, PNG, JPG, and TIFF files. An upload queue shows progress per file. Once uploads are ready, "Extract All" triggers the `/api/extract` pipeline for each document.
 
 ---
 

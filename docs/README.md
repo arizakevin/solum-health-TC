@@ -18,6 +18,7 @@ Index of everything under **`docs/`**. Clone setup, env vars, and day-to-day com
 | Doc | What it covers |
 |-----|------------------|
 | [**LLM model decisions**](./llm-model-decisions.md) | Model picks for extraction and Annie, cost vs quality |
+| [**Extraction architecture**](./extraction-architecture.md) | Provider defaults, fallback chain, file layout, production recommendations |
 | [**Extraction confidence**](./extraction-confidence.md) | Logprobs, dual-provider scoring, case-level metrics |
 | [**Document AI OCR**](./document-ai-ocr.md) | Optional Google Cloud Document AI for scans and handwriting |
 
