@@ -29,7 +29,7 @@ Not every document needs paid OCR. The pipeline applies Document AI **conditiona
 | **Scanned PDF** (sparse/empty text layer) | Returns little/nothing | Runs OCR, produces text | Receives OCR text + inline PDF |
 | **Images** (PNG, JPG, TIFF) | N/A | Always runs OCR | Receives OCR text + inline image |
 
-Users can override this default via per-case extraction settings (enhanced scan reading on/off, force OCR on all documents).
+Users can override this default via per-case extraction settings (cloud OCR for scans & handwriting on/off).
 
 ## Pricing
 

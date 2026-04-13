@@ -37,6 +37,7 @@ export async function POST(request: Request) {
 			success: true,
 			fieldCount: result.fieldCount,
 			extraction: result.extraction,
+			confidenceFollowUp: result.confidenceFollowUp,
 		});
 	} catch (error) {
 		console.error("Extraction route error:", error);

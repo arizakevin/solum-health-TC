@@ -1,138 +1,183 @@
 "use client";
 
-import { ChevronDown, ScanSearch } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Popover } from "@base-ui/react/popover";
+import { Settings2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { useExtractionPreferencesStore } from "@/stores/extraction-preferences-store";
 
 export interface ExtractionSettingsValues {
 	enhancedOcr: boolean;
-	forceOcr: boolean;
 }
 
-interface ExtractionSettingsProps {
+interface ExtractionSettingsFormProps {
 	value: ExtractionSettingsValues;
 	onChange: (next: ExtractionSettingsValues) => void;
 	ocrAvailable: boolean;
+	className?: string;
 }
 
-export function ExtractionSettings({
+/** OCR + auto-extract toggles (used inside the header popover). */
+export function ExtractionSettingsForm({
 	value,
 	onChange,
 	ocrAvailable,
-}: ExtractionSettingsProps) {
-	const [open, setOpen] = useState(false);
-	const rootRef = useRef<HTMLDivElement>(null);
-
-	useEffect(() => {
-		if (!open) return;
-		function onPointerDown(e: PointerEvent) {
-			const el = rootRef.current;
-			if (el && !el.contains(e.target as Node)) {
-				setOpen(false);
-			}
-		}
-		document.addEventListener("pointerdown", onPointerDown, true);
-		return () =>
-			document.removeEventListener("pointerdown", onPointerDown, true);
-	}, [open]);
-
-	if (!ocrAvailable) return null;
+	className,
+}: ExtractionSettingsFormProps) {
+	const autoExtractOnUpload = useExtractionPreferencesStore(
+		(s) => s.autoExtractOnUpload,
+	);
+	const setAutoExtractOnUpload = useExtractionPreferencesStore(
+		(s) => s.setAutoExtractOnUpload,
+	);
 
 	return (
-		<div ref={rootRef} className="relative z-20 shrink-0">
-			<div className="rounded-lg border bg-card text-card-foreground">
-				<button
-					type="button"
-					onClick={() => setOpen((o) => !o)}
-					aria-expanded={open}
-					className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-				>
-					<span className="flex items-center gap-1.5">
-						<ScanSearch className="h-3.5 w-3.5" />
-						Extraction Settings
-					</span>
-					<ChevronDown
-						className={cn(
-							"h-3.5 w-3.5 transition-transform",
-							open && "rotate-180",
-						)}
-					/>
-				</button>
-			</div>
-
-			{open && (
-				<section
-					className="absolute top-full right-0 left-0 z-30 mt-1 space-y-3 rounded-lg border bg-card p-3 shadow-lg"
-					aria-label="Extraction options"
-				>
+		<div className={cn("space-y-3", className)}>
+			{ocrAvailable && (
+				<>
 					<div className="flex items-center justify-between gap-3">
-						<div className="min-w-0">
-							<Label htmlFor="enhanced-ocr" className="text-sm font-medium">
-								Enhanced scan reading
+						<div className="min-w-0 space-y-1">
+							<Label htmlFor="cloud-ocr-scans" className="text-sm font-medium">
+								Enhanced reading for scans & handwriting
 							</Label>
-							<TooltipProvider>
-								<Tooltip>
-									<TooltipTrigger>
-										<p className="cursor-help text-left text-xs text-muted-foreground">
-											Improves accuracy on scanned and handwritten documents
-										</p>
-									</TooltipTrigger>
-									<TooltipContent side="bottom" className="max-w-[240px]">
-										Uses Google Document AI OCR on scanned PDFs and images
-										before AI extraction. Digital PDFs with readable text are
-										processed locally.
-									</TooltipContent>
-								</Tooltip>
-							</TooltipProvider>
+							<p className="text-left text-xs text-muted-foreground">
+								Improves accuracy on handwritten pages, photos of notes, and
+								scanned PDFs where text is hard to select. May add a little
+								processing time on those files.
+							</p>
 						</div>
 						<Switch
-							id="enhanced-ocr"
+							id="cloud-ocr-scans"
 							checked={value.enhancedOcr}
 							onCheckedChange={(checked: boolean) =>
-								onChange({ ...value, enhancedOcr: checked })
+								onChange({ enhancedOcr: checked })
 							}
 						/>
 					</div>
-
-					<div className="flex items-center justify-between gap-3">
-						<div className="min-w-0">
-							<Label htmlFor="force-ocr" className="text-sm font-medium">
-								Use OCR on all documents
-							</Label>
-							<TooltipProvider>
-								<Tooltip>
-									<TooltipTrigger>
-										<p className="cursor-help text-left text-xs text-muted-foreground">
-											Slower, slightly more accurate on digital PDFs
-										</p>
-									</TooltipTrigger>
-									<TooltipContent side="bottom" className="max-w-[240px]">
-										Forces cloud OCR on every document, including digital PDFs
-										that already have readable text. Useful for forms with
-										checkboxes or unusual layouts.
-									</TooltipContent>
-								</Tooltip>
-							</TooltipProvider>
-						</div>
-						<Switch
-							id="force-ocr"
-							checked={value.forceOcr}
-							disabled={!value.enhancedOcr}
-							onCheckedChange={(checked: boolean) =>
-								onChange({ ...value, forceOcr: checked })
-							}
-						/>
-					</div>
-				</section>
+					<Separator />
+				</>
 			)}
+
+			{!ocrAvailable && (
+				<p className="text-xs text-muted-foreground">
+					Enhanced scan reading is not available in this environment — only the
+					upload option below is shown here.
+				</p>
+			)}
+
+			<div className="flex items-start justify-between gap-3">
+				<div className="min-w-0 space-y-1">
+					<Label htmlFor="auto-extract-upload" className="text-sm font-medium">
+						Auto-extract after upload
+					</Label>
+					<p className="text-xs text-muted-foreground">
+						After every file in the current upload finishes, run extraction.
+					</p>
+				</div>
+				<Switch
+					id="auto-extract-upload"
+					className="shrink-0"
+					checked={autoExtractOnUpload}
+					onCheckedChange={setAutoExtractOnUpload}
+				/>
+			</div>
 		</div>
+	);
+}
+
+interface ExtractionSettingsPopoverProps {
+	value: ExtractionSettingsValues;
+	onChange: (next: ExtractionSettingsValues) => void;
+	ocrAvailable: boolean;
+	/** Element id for guided tour anchoring (trigger button). */
+	id?: string;
+	/** Notified when the popover opens or closes (e.g. guided tour wait step). */
+	onOpenChange?: (open: boolean) => void;
+	/** When true (e.g. tour advanced past the settings step), closes the popover. */
+	closeWhenTourPastSettings?: boolean;
+	/** Called when the user clicks Done inside the popover (after close). */
+	onDoneClick?: () => void;
+}
+
+export function ExtractionSettingsPopover({
+	value,
+	onChange,
+	ocrAvailable,
+	id,
+	onOpenChange,
+	closeWhenTourPastSettings = false,
+	onDoneClick,
+}: ExtractionSettingsPopoverProps) {
+	const [open, setOpen] = useState(false);
+
+	useEffect(() => {
+		if (!closeWhenTourPastSettings) return;
+		setOpen(false);
+		queueMicrotask(() => {
+			onOpenChange?.(false);
+		});
+	}, [closeWhenTourPastSettings, onOpenChange]);
+
+	const handleOpenChange = useCallback(
+		(next: boolean) => {
+			setOpen(next);
+			onOpenChange?.(next);
+		},
+		[onOpenChange],
+	);
+
+	const handleDoneClick = useCallback(() => {
+		onDoneClick?.();
+		handleOpenChange(false);
+	}, [handleOpenChange, onDoneClick]);
+
+	return (
+		<Popover.Root open={open} onOpenChange={handleOpenChange} modal={false}>
+			<Popover.Trigger
+				id={id}
+				render={
+					<Button
+						type="button"
+						variant="outline"
+						size="icon"
+						aria-label="Extraction settings"
+						title="Extraction settings"
+					>
+						<Settings2 className="h-4 w-4" />
+					</Button>
+				}
+			/>
+			<Popover.Portal>
+				<Popover.Positioner side="bottom" align="end" sideOffset={8}>
+					<Popover.Popup
+						id="tour-tutorial-extraction-settings-popup"
+						className={cn(
+							"z-50 w-[min(100vw-2rem,22rem)] origin-(--transform-origin) rounded-lg border bg-popover p-4 text-popover-foreground shadow-lg outline-none ring-1 ring-foreground/10",
+							"max-h-[min(70vh,28rem)] overflow-y-auto",
+							"data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95",
+							"data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+						)}
+					>
+						<Popover.Title className="mb-3 text-sm font-semibold leading-none">
+							Extraction settings
+						</Popover.Title>
+						<ExtractionSettingsForm
+							value={value}
+							onChange={onChange}
+							ocrAvailable={ocrAvailable}
+						/>
+						<div className="mt-4 flex justify-end border-t pt-3">
+							<Button type="button" size="sm" onClick={handleDoneClick}>
+								Done
+							</Button>
+						</div>
+					</Popover.Popup>
+				</Popover.Positioner>
+			</Popover.Portal>
+		</Popover.Root>
 	);
 }

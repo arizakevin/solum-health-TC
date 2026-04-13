@@ -7,13 +7,36 @@
  */
 
 import { createClient } from "@supabase/supabase-js";
+import { getExtractionProvider } from "@/lib/ai/extraction-provider";
 import { runCaseExtractionPipeline } from "@/lib/extraction/run-case-extraction";
 import { prisma } from "@/lib/prisma";
+
+function requireProviderApiKey(): void {
+	const p = getExtractionProvider();
+	if (p === "openai" && !process.env.OPENAI_API_KEY?.trim()) {
+		console.error(
+			"Missing OPENAI_API_KEY (required for EXTRACTION_PROVIDER=openai).",
+		);
+		process.exit(1);
+	}
+	if (p === "gemini" && !process.env.GEMINI_API_KEY?.trim()) {
+		console.error(
+			"Missing GEMINI_API_KEY (required for EXTRACTION_PROVIDER=gemini).",
+		);
+		process.exit(1);
+	}
+	if (p === "anthropic" && !process.env.ANTHROPIC_API_KEY?.trim()) {
+		console.error(
+			"Missing ANTHROPIC_API_KEY (required for EXTRACTION_PROVIDER=anthropic).",
+		);
+		process.exit(1);
+	}
+}
 
 async function main() {
 	if (!process.argv.includes("--yes")) {
 		console.error(
-			"Refusing to run without --yes (re-calls Gemini for every case with documents).",
+			"Refusing to run without --yes (re-runs extraction for every case with documents).",
 		);
 		console.error("Usage: npm run reextract:all -- --yes");
 		process.exit(1);
@@ -33,10 +56,7 @@ async function main() {
 		process.exit(1);
 	}
 
-	if (!process.env.GEMINI_API_KEY) {
-		console.error("Missing GEMINI_API_KEY.");
-		process.exit(1);
-	}
+	requireProviderApiKey();
 
 	const supabase = createClient(url, key);
 

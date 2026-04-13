@@ -11,10 +11,12 @@ export function getGeminiClient(): GoogleGenAI {
 	return _client;
 }
 
-export function getExtractionModelId(): string {
-	return process.env.EXTRACTION_MODEL_ID ?? "gemini-3-flash-preview";
-}
-
-export function getAssistantModelId(): string {
-	return process.env.ASSISTANT_MODEL_ID ?? "gemini-3-flash-preview";
+/** Gemini model id when `EXTRACTION_PROVIDER=gemini`. Reads `EXTRACTION_GEMINI_MODEL_ID`; `EXTRACTION_MODEL_ID` is a deprecated alias. */
+export function getExtractionModelId(override?: string | null): string {
+	const t = override?.trim();
+	if (t) return t;
+	const id =
+		process.env.EXTRACTION_GEMINI_MODEL_ID?.trim() ||
+		process.env.EXTRACTION_MODEL_ID?.trim();
+	return id || "gemini-3-flash-preview";
 }
