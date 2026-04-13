@@ -103,7 +103,7 @@ _Results from running each sample PDF (01–06) through the production extractio
 
 Entries for this calendar day are grouped into **sessions** (numbered in chronological order; no wall-clock labels).
 
-**Time spent (Day 3, all sessions):** ~14 hours combined (rough estimate).
+**Time spent (Day 3, all sessions):** ~14 hours combined.
 
 ### Session 1 — Document AI OCR, confidence architecture, model selection
 
@@ -222,7 +222,7 @@ Entries for this calendar day are grouped into **sessions** (numbered in chronol
 
 ### Session 4 — Guided in-app tutorial
 
-**Time spent:** ~1.5 hours (rough)
+**Time spent:** ~1.5 hours
 
 #### Implementation (`.cursor/plans/guided_in-app_tutorial_31e6596c.plan.md`)
 
