@@ -1,5 +1,6 @@
 import type { Content } from "@google/genai";
 import { getAssistantModelId, getGeminiClient } from "@/lib/ai/gemini";
+import { extractionFieldGroupKey } from "@/lib/corrections/field-group";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 
@@ -38,11 +39,18 @@ export async function POST(request: Request) {
 			});
 			if (caseData) {
 				const formData = caseData.finalFormData ?? caseData.rawExtraction;
+				const logicalCorrected = new Set(
+					caseData.extractionFields
+						.filter((f: { wasCorrected: boolean }) => f.wasCorrected)
+						.map((f: { section: string; fieldName: string }) =>
+							extractionFieldGroupKey(f.section, f.fieldName),
+						),
+				).size;
 				caseContext = `\n\nCurrent case context (ID: ${caseId.slice(0, 8)}):
 - Status: ${caseData.status}
 - Documents: ${caseData.documents.map((d: { filename: string }) => d.filename).join(", ") || "None"}
 - Extracted fields: ${caseData.extractionFields.length}
-- Fields with corrections: ${caseData.extractionFields.filter((f: { wasCorrected: boolean }) => f.wasCorrected).length}
+- Fields with corrections: ${logicalCorrected}
 ${formData ? `- Form data preview: ${JSON.stringify(formData).slice(0, 500)}...` : ""}`;
 			}
 		}

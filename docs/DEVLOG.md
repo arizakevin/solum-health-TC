@@ -82,11 +82,11 @@ _Results from running each sample PDF (01–06) through the production extractio
 
 ### Post-MVP backlog (from notes — polish and stretch)
 
-- **Mobile responsiveness** across dashboard, case review, metrics, and chat.
+- **Mobile responsiveness** — shipped in **Day 3 · session 3** (nav hamburger, dashboard/metrics tables, case review, Annie drawer, PDF toolbar, corrections table). See that session below.
 - **Annie — full app actions**: implement server-validated tooling so the assistant can perform the same operations a user can (forms, navigation, extraction, deletes, etc.); consider a **more capable Gemini model** for that mode because tool-use and multi-step reasoning are harder than read-only Q&A.
 - **Annie settings** in-panel: which categories of actions are allowed (sensible defaults: on).
 - **Guided in-app tutorial** (first-run or "Help" tour): short, contextual steps through upload → extract → review → save/PDF → metrics — improves discoverability for reviewers (implementation TBD).
-- **Dashboard filters** (reuse ideas for richer search/filter later).
+- **Dashboard filters / pagination** — shipped in **Day 3 · session 3** (`patientName` column, TanStack Query + URL state, server-side `getCasesPage`, metrics aggregation refactor). Deeper / graph-style exploration still backlog.
 - **Extraction / OCR quality gate**: structured evaluation on sample PDFs `01`–`06` (evidence via real UI runs; screenshots under `docs/screenshots/day-2-2026-04-11-mvp-basic-working-product/` for the first MVP QA pass — numbers from the app's aggregate confidence logic after extraction).
 - **Docs**: optional in-app or linked docs site.
 - **Tests**: Vitest + Playwright; reuse a dedicated test account only in CI secrets / local `.env` — never commit passwords.
@@ -99,16 +99,22 @@ _Results from running each sample PDF (01–06) through the production extractio
 - **Quality evidence**: prefer manual or E2E flows through the deployed/local UI so metrics match production code paths.
 - **Product naming**: AuthScribe by Solum Health — AI-powered prior authorization scribe.
 
-## Day 3 — April 12, 2026 (Document AI OCR, confidence architecture, model selection)
+## Day 3 — April 12, 2026
 
-**Time spent:** ~6 hours (late night / early morning session)
+Entries for this calendar day are grouped into **sessions** (numbered in chronological order; no wall-clock labels).
 
-### Document AI OCR integration
+**Time spent (Day 3, all sessions):** ~11 hours combined (rough estimate).
+
+### Session 1 — Document AI OCR, confidence architecture, model selection
+
+**Time spent:** ~6 hours
+
+#### Document AI OCR integration
 
 - Wired **Google Cloud Document AI** as a conditional OCR step: extraction settings UI, pipeline hooks, toggle between direct Gemini multimodal vs OCR-first text feed.
 - Regression on sample cases (typed referral, clinical notes, insurance card, handwritten note).
 
-### Confidence architecture fix
+#### Confidence architecture fix
 
 - **Problem:** Aggregate "avg confidence" barely moved on handwritten OCR runs (67% → 69%). The old metric averaged per-field label weights (`high`/`medium`/`low` → 95/78/45) across **every** field — empty fields from sparse sources dragged the score down identically to uncertain extractions, conflating **completeness** with **quality**.
 - **Solution:** Split into two independent metrics:
@@ -117,35 +123,35 @@ _Results from running each sample PDF (01–06) through the production extractio
 - **Prisma migration:** `cases.extraction_confidence` as nullable `Float`, backfilled on re-extract.
 - Per-field `high`/`medium`/`low` labels kept for dots/tooltips; prompt updated so "low" no longer means "not found."
 
-### Logprobs fallback chain
+#### Logprobs fallback chain
 
 - Gemini API key route [does not reliably support logprobs](https://discuss.ai.google.dev/t/logprobs-is-not-enabled-for-gemini-models/107989) — many models return "Logprobs is not enabled" or omit `avgLogprobs`.
 - Implemented a two-provider fallback: **Gemini logprobs → OpenAI `gpt-4o-mini` re-emission → `null`**. The OpenAI pass re-emits extracted JSON with `logprobs: true` and derives the same 0–100 score from mean token logprob (< $0.001 per call).
 
-### Model selection
+#### Model selection
 
 - Evaluated `gemini-3-flash-preview` ($0.50/$3.00) vs `gemini-3.1-flash-lite-preview` ($0.10/$0.40). Selected **Flash** as default — better structured mapping on complex medical forms. Flash-Lite documented as cost-downgrade option.
 - See [`docs/llm-model-decisions.md`](./llm-model-decisions.md) for full evaluation and pricing.
 
-### UI polish
+#### UI polish
 
 - Source panel: **"N% confidence"** badge with tiered color (green ≥80% / amber ≥50% / red <50%), **"Confidence: pending"** when no score yet, client-facing tooltips.
 - Metrics cards: retitled to **Extraction Confidence** and **Form Completeness** with color-coded values and plain-language subtitles.
 
-### Key decisions
+#### Key decisions (session 1)
 
 - **Two metrics, not one** — OCR improvements lift extraction confidence independently; completeness stays honest for sparse sources.
 - **No Vertex dependency for confidence** — OpenAI keys already available; Vertex remains optional if Gemini logprobs stabilize.
 - **Flash over Flash-Lite** — quality wins for a challenge demo; Flash-Lite is a documented cost-downgrade path.
 
-### Evidence
+#### Evidence
 
 | Folder | Contents |
 |--------|----------|
 | [`day-3-2026-04-12-document-ai-ocr/`](./screenshots/day-3-2026-04-12-document-ai-ocr/) | OCR integration: dashboard, case reviews, metrics, extraction settings. |
 | [`day-3-confidence-split/`](./screenshots/day-3-confidence-split/) | Confidence/completeness split: dashboard, metrics, settings, four representative cases. |
 
-### Documentation
+#### Documentation
 
 - [`docs/extraction-confidence.md`](./extraction-confidence.md) — methodology, formula, provider limitations
 - [`docs/llm-model-decisions.md`](./llm-model-decisions.md) — model evaluations, pricing, decision history
@@ -153,14 +159,14 @@ _Results from running each sample PDF (01–06) through the production extractio
 
 ---
 
-### Day 3 afternoon — Deployment verification, README overhaul, credential strategy
+### Session 2 — Deployment verification, README overhaul, credential strategy
 
 **Time spent:** ~2 hours
 
 #### Vercel deployment verification
 
 - Connected to Vercel MCP: confirmed project `solum-health-tc` is live at [solum-health-tc.vercel.app](https://solum-health-tc.vercel.app), latest deployment `READY` (production, Turbopack, Next.js 16.2.3).
-- Verified zero runtime errors in the last 6 hours, build logs clean (Prisma 7.7 generates successfully).
+- Spot-checked runtime logs in the Vercel dashboard; no errors in the sampled window; build logs clean (Prisma 7.7 generates successfully).
 - All environment variables confirmed set in Vercel dashboard.
 
 #### README overhaul
@@ -179,7 +185,35 @@ _Results from running each sample PDF (01–06) through the production extractio
 - Updated `config.ts` and `run-document-ocr.ts` to use `credentials` instead of `keyFilename`.
 - Updated `.env.example`, README, and `docs/document-ai-ocr.md` with the new approach and decision rationale.
 
-#### Key decisions
+#### Key decisions (session 2)
 
 - **One credential mode, not two** — same env vars work on local dev and Vercel; eliminates branching and reduces cognitive overhead.
 - **Unused env vars removed** — `NEXT_PUBLIC_SITE_URL` was never referenced in code; `GOOGLE_APPLICATION_CREDENTIALS` replaced by decomposed vars.
+
+---
+
+### Session 3 — Mobile responsiveness; dashboard filters, pagination, and performance
+
+**Time spent:** ~3 hours
+
+#### Mobile responsiveness (`.cursor/plans/mobile_responsiveness_2488e537`)
+
+- **Nav:** Hamburger + dropdown below `md` (Dashboard, Metrics, sign out); desktop link row + avatar menu unchanged.
+- **Dashboard & metrics:** Responsive headings; case list horizontal scroll; hide Case ID / Created (and corrections-table columns) on narrow breakpoints.
+- **Case review:** Shorter mobile min-heights; stacked Save / Approve actions on small screens; source panel footer wraps; header shows **short case ID** as the main title (avoids repeating “Case Review”).
+- **Annie:** Sheet uses full viewport width on phones (`!` overrides for default sheet `w-3/4`); chat composer row vertically aligned (`items-center`, matched control heights).
+- **PDF preview:** Toolbar `flex-wrap` and shorter button labels on very small viewports.
+- **Recent corrections:** `overflow-x-auto` and responsive column visibility.
+
+#### Dashboard filters, pagination, and performance (`.cursor/plans/dashboard_filters_pagination_performance_a49219d2`)
+
+- **Schema:** `cases.patient_name` denormalized for fast, index-friendly patient search; populated on extraction and updated on draft save.
+- **Server:** `getCasesPage` — filters (search `ILIKE`, status, created date range, optional confidence min/max), parallel `count` + `skip`/`take` pagination.
+- **Client:** `@tanstack/react-query` with root `QueryProvider` and defaults (`staleTime` 30s, `gcTime` 5m); `DashboardClient` with 300ms debounced search, URL sync for filters and page, page sizes 10 / 20 / 50, bulk delete; `Suspense` for `useSearchParams`; removed `case-list-table.tsx`.
+- **Metrics:** `getMetricsData` server action — Prisma `aggregate` / `groupBy` and a raw SQL subquery for average per-case form completeness instead of loading all rows into Node; metrics page `revalidate = 60`; case review page `revalidate = 0` (always fresh).
+- **Filter UX polish:** Desktop — uniform `h-8` row (`items-center`, status select matches inputs). Mobile — bordered “Filters” card, ~44px touch targets, “Created from / to” labels, full-width search and status, two-column dates.
+
+#### Key decisions (session 3)
+
+- **Denormalized `patientName`** instead of querying `final_form_data` JSON — predictable performance and simpler `where` clauses.
+- **TanStack Query + server actions** instead of RSC-only filter navigation — fewer full HTML round-trips while keeping Prisma off the client.

@@ -33,7 +33,10 @@ export function MetricsDashboard({ data }: { data: MetricsData }) {
 
 	return (
 		<div className="space-y-6">
-			<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+			<div
+				id="metrics-cards"
+				className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+			>
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between pb-2">
 						<CardTitle className="text-sm font-medium">Total Cases</CardTitle>

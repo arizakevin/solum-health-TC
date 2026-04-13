@@ -26,7 +26,7 @@ export default async function DashboardPage() {
 						redirect(`/case/${id}`);
 					}}
 				>
-					<Button type="submit">
+					<Button id="btn-new-case" type="submit">
 						<Plus className="mr-2 h-4 w-4" />
 						New Case
 					</Button>

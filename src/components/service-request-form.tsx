@@ -201,6 +201,7 @@ export function ServiceRequestForm({
 					{isSaving ? "Saving..." : "Save Draft"}
 				</Button>
 				<Button
+					id="btn-approve-pdf"
 					onClick={handleApprove}
 					disabled={isApproving}
 					className="w-full sm:w-auto"

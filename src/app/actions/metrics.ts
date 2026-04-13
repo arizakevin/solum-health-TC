@@ -16,30 +16,65 @@ export interface MetricsData {
 	correctionsBySection: Record<string, { corrected: number; total: number }>;
 }
 
+function toInt(n: unknown): number {
+	if (typeof n === "bigint") return Number(n);
+	if (typeof n === "number") return n;
+	return Number(n ?? 0);
+}
+
 export async function getMetricsData(): Promise<MetricsData> {
 	try {
-		const [totalCases, docsProcessed, confidenceAgg, fieldAggs, sectionGroups] =
-			await Promise.all([
-				prisma.case.count(),
-				prisma.document.count(),
-				prisma.case.aggregate({
-					_avg: { extractionConfidence: true },
-					_count: { extractionConfidence: true },
-				}),
-				prisma.extractionField.aggregate({
-					_count: { _all: true },
-					where: undefined,
-				}),
-				prisma.extractionField.groupBy({
-					by: ["section", "wasCorrected"],
-					_count: { _all: true },
-				}),
-			]);
+		const [
+			totalCases,
+			docsProcessed,
+			confidenceAgg,
+			logicalFieldAgg,
+			sectionLogicalRows,
+		] = await Promise.all([
+			prisma.case.count(),
+			prisma.document.count(),
+			prisma.case.aggregate({
+				_avg: { extractionConfidence: true },
+				_count: { extractionConfidence: true },
+			}),
+			prisma.$queryRaw<
+				{ corrected: bigint | number; total: bigint | number }[]
+			>`
+				WITH lf AS (
+					SELECT case_id, section, field_name,
+						bool_or(was_corrected) AS is_corrected
+					FROM extraction_fields
+					GROUP BY case_id, section, field_name
+				)
+				SELECT
+					COUNT(*) FILTER (WHERE is_corrected)::bigint AS corrected,
+					COUNT(*)::bigint AS total
+				FROM lf
+			`,
+			prisma.$queryRaw<
+				{
+					section: string;
+					corrected: bigint | number;
+					total: bigint | number;
+				}[]
+			>`
+				WITH lf AS (
+					SELECT case_id, section, field_name,
+						bool_or(was_corrected) AS is_corrected
+					FROM extraction_fields
+					GROUP BY case_id, section, field_name
+				)
+				SELECT section,
+					COUNT(*) FILTER (WHERE is_corrected)::bigint AS corrected,
+					COUNT(*)::bigint AS total
+				FROM lf
+				GROUP BY section
+			`,
+		]);
 
-		const correctedTotal = await prisma.extractionField.count({
-			where: { wasCorrected: true },
-		});
-		const totalFields = fieldAggs._count._all;
+		const lfRow = logicalFieldAgg[0];
+		const correctedTotal = lfRow ? toInt(lfRow.corrected) : 0;
+		const totalLogicalFields = lfRow ? toInt(lfRow.total) : 0;
 
 		// Extraction confidence
 		const hasLogprobs = confidenceAgg._count.extractionConfidence > 0;
@@ -87,19 +122,15 @@ export async function getMetricsData(): Promise<MetricsData> {
 		`;
 		const avgFormCompleteness = completenessRows[0]?.avg_completeness ?? 0;
 
-		// Section corrections
 		const correctionsBySection: Record<
 			string,
 			{ corrected: number; total: number }
 		> = {};
-		for (const g of sectionGroups) {
-			if (!correctionsBySection[g.section]) {
-				correctionsBySection[g.section] = { corrected: 0, total: 0 };
-			}
-			correctionsBySection[g.section].total += g._count._all;
-			if (g.wasCorrected) {
-				correctionsBySection[g.section].corrected += g._count._all;
-			}
+		for (const row of sectionLogicalRows) {
+			correctionsBySection[row.section] = {
+				corrected: toInt(row.corrected),
+				total: toInt(row.total),
+			};
 		}
 
 		return {
@@ -107,7 +138,10 @@ export async function getMetricsData(): Promise<MetricsData> {
 			avgExtractionConfidence,
 			extractionConfidenceIsLegacyEstimate: !hasLogprobs,
 			avgFormCompleteness,
-			fieldsCorrected: { count: correctedTotal, total: totalFields },
+			fieldsCorrected: {
+				count: correctedTotal,
+				total: totalLogicalFields,
+			},
 			docsProcessed,
 			correctionsBySection,
 		};
@@ -149,25 +183,65 @@ export interface PaginatedCorrections {
 
 export async function getCorrections(page = 1): Promise<PaginatedCorrections> {
 	const safePage = Math.max(1, page);
+	const offset = (safePage - 1) * PAGE_SIZE;
 
-	const [total, rows] = await Promise.all([
-		prisma.extractionField.count({ where: { wasCorrected: true } }),
-		prisma.extractionField.findMany({
-			where: { wasCorrected: true },
-			orderBy: { extractedAt: "desc" },
-			skip: (safePage - 1) * PAGE_SIZE,
-			take: PAGE_SIZE,
-		}),
+	const [countRows, rawRows] = await Promise.all([
+		prisma.$queryRaw<{ n: bigint | number }[]>`
+			SELECT COUNT(*)::bigint AS n
+			FROM (
+				SELECT 1
+				FROM extraction_fields
+				GROUP BY case_id, section, field_name
+				HAVING bool_or(was_corrected)
+			) t
+		`,
+		prisma.$queryRaw<
+			{
+				case_id: string;
+				section: string;
+				field_name: string;
+				original_concat: string | null;
+				final_concat: string | null;
+				activity_at: Date;
+			}[]
+		>`
+			WITH grouped AS (
+				SELECT
+					ef.case_id,
+					ef.section,
+					ef.field_name,
+					bool_or(ef.was_corrected) AS is_corrected,
+					string_agg(ef.auto_value, ', ' ORDER BY ef.auto_value) AS original_concat,
+					string_agg(ef.final_value, ', ' ORDER BY ef.final_value) AS final_concat
+				FROM extraction_fields ef
+				GROUP BY ef.case_id, ef.section, ef.field_name
+			)
+			SELECT
+				g.case_id,
+				g.section,
+				g.field_name,
+				g.original_concat,
+				g.final_concat,
+				c.updated_at AS activity_at
+			FROM grouped g
+			INNER JOIN cases c ON c.id = g.case_id
+			WHERE g.is_corrected
+			ORDER BY c.updated_at DESC, g.case_id, g.section, g.field_name
+			LIMIT ${PAGE_SIZE}
+			OFFSET ${offset}
+		`,
 	]);
 
+	const total = countRows[0] ? toInt(countRows[0].n) : 0;
+
 	return {
-		rows: rows.map((f) => ({
-			caseId: f.caseId,
-			field: f.fieldName,
-			originalValue: f.autoValue ?? "",
-			correctedValue: f.finalValue ?? "",
-			section: f.section,
-			date: f.extractedAt.toISOString(),
+		rows: rawRows.map((r) => ({
+			caseId: r.case_id,
+			field: r.field_name,
+			originalValue: r.original_concat ?? "",
+			correctedValue: r.final_concat ?? "",
+			section: r.section,
+			date: r.activity_at.toISOString(),
 		})),
 		total,
 		page: safePage,

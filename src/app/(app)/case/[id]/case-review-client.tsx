@@ -125,7 +125,10 @@ export function CaseReviewClient({
 				/>
 			</div>
 
-			<div className="grid gap-6 lg:grid-cols-[1fr_1.2fr] lg:items-stretch">
+			<div
+				id="case-review-grid"
+				className="grid gap-6 lg:grid-cols-[1fr_1.2fr] lg:items-stretch"
+			>
 				<div className="flex min-h-[300px] flex-col gap-3 sm:min-h-[500px] lg:h-full">
 					<div className="flex min-h-0 flex-1 flex-col">
 						<SourceDocumentsPanel

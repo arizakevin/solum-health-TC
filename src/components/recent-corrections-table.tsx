@@ -17,6 +17,11 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const SECTION_NAMES: Record<string, string> = {
 	header: "Header",
@@ -66,6 +71,48 @@ const FIELD_LABELS: Record<string, string> = {
 	date: "Date",
 	licenseNumber: "License Number",
 };
+
+function CorrectionCompareTooltip({
+	original,
+	corrected,
+	children,
+}: {
+	original: string;
+	corrected: string;
+	children: React.ReactNode;
+}) {
+	return (
+		<Tooltip>
+			<TooltipTrigger
+				className="block w-full max-w-[120px] cursor-help truncate border-b border-dotted border-transparent text-left underline-offset-2 hover:border-muted-foreground/40"
+				aria-label="Show full original and corrected values"
+			>
+				{children}
+			</TooltipTrigger>
+			<TooltipContent
+				side="top"
+				align="start"
+				sideOffset={8}
+				className="max-h-[min(70vh,28rem)] w-[min(100vw-2rem,28rem)] max-w-lg overflow-y-auto border bg-popover p-3 text-left text-popover-foreground shadow-md"
+			>
+				<div className="space-y-3 text-xs">
+					<div>
+						<p className="mb-1 font-medium text-muted-foreground">Original</p>
+						<p className="whitespace-pre-wrap break-words font-mono text-[13px] leading-relaxed text-foreground">
+							{original || "—"}
+						</p>
+					</div>
+					<div className="border-t border-border pt-3">
+						<p className="mb-1 font-medium text-muted-foreground">Corrected</p>
+						<p className="whitespace-pre-wrap break-words font-mono text-[13px] leading-relaxed text-foreground">
+							{corrected || "—"}
+						</p>
+					</div>
+				</div>
+			</TooltipContent>
+		</Tooltip>
+	);
+}
 
 export function RecentCorrectionsTable() {
 	const [data, setData] = useState<PaginatedCorrections | null>(null);
@@ -122,19 +169,29 @@ export function RecentCorrectionsTable() {
 						</TableRow>
 					</TableHeader>
 					<TableBody>
-						{rows.map((c: CorrectionRow, i: number) => (
-							<TableRow key={`${c.caseId}-${c.field}-${i}`}>
+						{rows.map((c: CorrectionRow) => (
+							<TableRow key={`${c.caseId}-${c.section}-${c.field}`}>
 								<TableCell className="hidden font-mono text-xs md:table-cell">
 									#{c.caseId.slice(0, 8)}
 								</TableCell>
 								<TableCell className="text-sm">
 									{FIELD_LABELS[c.field] ?? c.field}
 								</TableCell>
-								<TableCell className="max-w-[120px] truncate text-xs text-muted-foreground">
-									{c.originalValue || "—"}
+								<TableCell className="max-w-[120px] p-2 text-xs text-muted-foreground">
+									<CorrectionCompareTooltip
+										original={c.originalValue}
+										corrected={c.correctedValue}
+									>
+										{c.originalValue || "—"}
+									</CorrectionCompareTooltip>
 								</TableCell>
-								<TableCell className="max-w-[120px] truncate text-xs">
-									{c.correctedValue}
+								<TableCell className="max-w-[120px] p-2 text-xs">
+									<CorrectionCompareTooltip
+										original={c.originalValue}
+										corrected={c.correctedValue}
+									>
+										{c.correctedValue || "—"}
+									</CorrectionCompareTooltip>
 								</TableCell>
 								<TableCell className="hidden sm:table-cell">
 									<Badge variant="secondary" className="text-xs">

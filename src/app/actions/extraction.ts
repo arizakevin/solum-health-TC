@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { arrayDiffers, scalarDiffers } from "@/lib/corrections/compare-values";
+import { extractionFieldGroupKey } from "@/lib/corrections/field-group";
 import {
 	type ExtractionOptions,
 	runCaseExtraction,
@@ -19,28 +21,54 @@ export async function saveFormDraft(
 
 	if (!existingCase) throw new Error("Case not found");
 
+	const byGroup = new Map<string, typeof existingCase.extractionFields>();
 	for (const field of existingCase.extractionFields) {
+		const key = extractionFieldGroupKey(field.section, field.fieldName);
+		const list = byGroup.get(key);
+		if (list) list.push(field);
+		else byGroup.set(key, [field]);
+	}
+
+	for (const rows of byGroup.values()) {
+		rows.sort((a, b) => a.id.localeCompare(b.id));
+		const first = rows[0];
 		const sectionData = formData[
-			field.section as keyof ServiceRequestExtraction
+			first.section as keyof ServiceRequestExtraction
 		] as Record<string, { value: string } | { value: string }[]> | undefined;
 		if (!sectionData) continue;
 
-		const fieldData = sectionData[field.fieldName];
+		const fieldData = sectionData[first.fieldName];
 		if (!fieldData) continue;
 
-		const newValue = Array.isArray(fieldData)
-			? fieldData.map((f) => f.value).join(", ")
-			: fieldData.value;
+		const isArray = Array.isArray(fieldData);
+		const wasCorrected = isArray
+			? arrayDiffers(
+					fieldData.map((f) => f.value),
+					rows.map((r) => r.autoValue ?? ""),
+				)
+			: scalarDiffers(fieldData.value, rows[0].autoValue ?? "");
 
-		const wasCorrected = newValue !== field.autoValue;
-
-		await prisma.extractionField.update({
-			where: { id: field.id },
-			data: {
-				finalValue: newValue,
-				wasCorrected,
-			},
-		});
+		if (isArray) {
+			for (let i = 0; i < rows.length; i++) {
+				await prisma.extractionField.update({
+					where: { id: rows[i].id },
+					data: {
+						finalValue: fieldData[i]?.value ?? "",
+						wasCorrected,
+					},
+				});
+			}
+		} else {
+			for (const row of rows) {
+				await prisma.extractionField.update({
+					where: { id: row.id },
+					data: {
+						finalValue: fieldData.value,
+						wasCorrected,
+					},
+				});
+			}
+		}
 	}
 
 	const patientName =
@@ -56,6 +84,7 @@ export async function saveFormDraft(
 	});
 
 	revalidatePath(`/case/${caseId}`);
+	revalidatePath("/metrics");
 }
 
 export async function approveAndGeneratePdf(

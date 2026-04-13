@@ -166,7 +166,7 @@ export function DashboardClient({
 		"h-11 min-h-[44px] py-0 text-base leading-none sm:h-8 sm:min-h-8 sm:text-sm";
 
 	return (
-		<div className="space-y-4">
+		<div id="case-list-table" className="space-y-4">
 			{/* Filters: stacked + 44px touch targets on mobile; compact row from sm */}
 			<div className="rounded-xl border border-border/60 bg-muted/15 p-3 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0">
 				<p className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase sm:sr-only">

@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, Menu, Moon, Sun } from "lucide-react";
+import { GraduationCap, LogOut, Menu, Moon, Sun } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { LOGO_SUBTITLE_INSET_PERCENT, PRODUCT_NAME } from "@/lib/brand";
 import { createClient } from "@/lib/supabase/client";
+import { useTutorialStore } from "@/stores/tutorial-store";
 
 const NAV_LINKS = [
 	{ href: "/", label: "Dashboard" },
@@ -56,6 +57,11 @@ export function AppNav() {
 		const supabase = createClient();
 		await supabase.auth.signOut();
 		router.push("/sign-in");
+	}
+
+	function handleRestartGuidedTour() {
+		useTutorialStore.getState().resetTutorial();
+		router.push("/");
 	}
 
 	return (
@@ -142,6 +148,11 @@ export function AppNav() {
 								</DropdownMenuItem>
 							))}
 							<DropdownMenuSeparator />
+							<DropdownMenuItem onClick={handleRestartGuidedTour}>
+								<GraduationCap className="mr-2 h-4 w-4" />
+								Restart guided tour
+							</DropdownMenuItem>
+							<DropdownMenuSeparator />
 							<DropdownMenuItem onClick={handleSignOut}>
 								<LogOut className="mr-2 h-4 w-4" />
 								Sign Out
@@ -157,6 +168,11 @@ export function AppNav() {
 							</Avatar>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end">
+							<DropdownMenuItem onClick={handleRestartGuidedTour}>
+								<GraduationCap className="mr-2 h-4 w-4" />
+								Restart guided tour
+							</DropdownMenuItem>
+							<DropdownMenuSeparator />
 							<DropdownMenuItem onClick={handleSignOut}>
 								<LogOut className="mr-2 h-4 w-4" />
 								Sign Out
