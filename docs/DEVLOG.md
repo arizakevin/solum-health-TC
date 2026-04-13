@@ -85,7 +85,7 @@ _Results from running each sample PDF (01–06) through the production extractio
 - **Mobile responsiveness** — shipped in **Day 3 · session 3** (nav hamburger, dashboard/metrics tables, case review, Annie drawer, PDF toolbar, corrections table). See that session below.
 - **Annie — full app actions**: implement server-validated tooling so the assistant can perform the same operations a user can (forms, navigation, extraction, deletes, etc.); consider a **more capable Gemini model** for that mode because tool-use and multi-step reasoning are harder than read-only Q&A.
 - **Annie settings** in-panel: which categories of actions are allowed (sensible defaults: on).
-- **Guided in-app tutorial** (first-run or "Help" tour): short, contextual steps through upload → extract → review → save/PDF → metrics — improves discoverability for reviewers (implementation TBD).
+- **Guided in-app tutorial** — shipped in **Day 3 · session 4** (`.cursor/plans/guided_in-app_tutorial_31e6596c.plan.md`): welcome on first dashboard visit, five-step tour with DOM targets, non-blocking overlay, manual navigation keeps step in sync, **Restart guided tour** in nav. See session 4 below.
 - **Dashboard filters / pagination** — shipped in **Day 3 · session 3** (`patientName` column, TanStack Query + URL state, server-side `getCasesPage`, metrics aggregation refactor). Deeper / graph-style exploration still backlog.
 - **Extraction / OCR quality gate**: structured evaluation on sample PDFs `01`–`06` (evidence via real UI runs; screenshots under `docs/screenshots/day-2-2026-04-11-mvp-basic-working-product/` for the first MVP QA pass — numbers from the app's aggregate confidence logic after extraction).
 - **Docs**: optional in-app or linked docs site.
@@ -103,7 +103,7 @@ _Results from running each sample PDF (01–06) through the production extractio
 
 Entries for this calendar day are grouped into **sessions** (numbered in chronological order; no wall-clock labels).
 
-**Time spent (Day 3, all sessions):** ~11 hours combined (rough estimate).
+**Time spent (Day 3, all sessions):** ~12.5 hours combined (rough estimate).
 
 ### Session 1 — Document AI OCR, confidence architecture, model selection
 
@@ -217,3 +217,22 @@ Entries for this calendar day are grouped into **sessions** (numbered in chronol
 
 - **Denormalized `patientName`** instead of querying `final_form_data` JSON — predictable performance and simpler `where` clauses.
 - **TanStack Query + server actions** instead of RSC-only filter navigation — fewer full HTML round-trips while keeping Prisma off the client.
+
+---
+
+### Session 4 — Guided in-app tutorial
+
+**Time spent:** ~1.5 hours (rough)
+
+#### Implementation (`.cursor/plans/guided_in-app_tutorial_31e6596c.plan.md`)
+
+- **Stack:** Zustand + `persist` (`authscribe-tutorial`, `hasSeenTutorial` only) in `src/stores/tutorial-store.ts`; no tour library dependency.
+- **UI:** `TutorialOverlay` — floating step card positioned from `getBoundingClientRect`, `ResizeObserver` + scroll/resize; **Next** / **Skip**; `aria-modal="false"` so the page stays usable (no full-screen dim or blur).
+- **Orchestration:** `TutorialManager` — five steps (dashboard list → new case → case review grid → approve PDF → metrics cards), `router.push` when **Next** advances across routes; pathname sync so if the user navigates themselves (e.g. Metrics, open a case), the tour step realigns; “Create a case first” dialog when steps 3–4 need a case and none exists.
+- **Mount:** `(app)` layout so the tour survives in-app navigation.
+- **Discoverability:** Welcome dialog (“Take a quick tour” / Skip); **Restart guided tour** in mobile hamburger and desktop avatar menus (`GraduationCap`).
+
+#### Key decisions (session 4)
+
+- **Hand-rolled tour** — matches existing patterns (Zustand + Tailwind), avoids dependency weight for a short linear flow.
+- **Persist only “has seen welcome”** — mid-tour step is not persisted across refresh (simpler state; user can restart from nav).
