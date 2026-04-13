@@ -12,6 +12,15 @@ export const extractedFieldSchema = z.object({
 export type ExtractedField = z.infer<typeof extractedFieldSchema>;
 
 export const serviceRequestSchema = z.object({
+	isValidDocument: z
+		.boolean()
+		.describe(
+			"True if the document(s) appear to be somewhat related to healthcare, patient forms, letters, or lab results. False if it is completely irrelevant (e.g., duck picture, fiction book).",
+		),
+	rejectionReason: z
+		.string()
+		.optional()
+		.describe("If isValidDocument is false, a short explanation why."),
 	header: z.object({
 		payer: extractedFieldSchema,
 		dateOfRequest: extractedFieldSchema,

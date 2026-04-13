@@ -186,6 +186,24 @@ export async function runCaseExtractionPipeline(
 
 		const { extraction, extractionConfidenceFromLogprobs } = structuredResult;
 
+		if (
+			"isValidDocument" in extraction &&
+			extraction.isValidDocument === false
+		) {
+			await prisma.case.update({
+				where: { id: caseId },
+				data: { status: "Draft" }, // Revert to Draft instead of failing permanently.
+			});
+			return {
+				ok: false,
+				status: 400,
+				error: "Invalid Document",
+				details:
+					(extraction as { rejectionReason?: string }).rejectionReason ||
+					"The document was analyzed and deemed irrelevant to a medical service request context.",
+			};
+		}
+
 		let extractionConfidence: number | null = extractionConfidenceFromLogprobs;
 		let confidenceFollowUp: ConfidenceFollowUp = "none";
 
@@ -252,7 +270,7 @@ export async function runCaseExtractionPipeline(
 
 		const extractedName =
 			(
-				extraction as Record<
+				extraction as unknown as Record<
 					string,
 					Record<string, { value?: string }> | undefined
 				>
