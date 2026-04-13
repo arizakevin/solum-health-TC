@@ -103,7 +103,7 @@ _Results from running each sample PDF (01–06) through the production extractio
 
 Entries for this calendar day are grouped into **sessions** (numbered in chronological order; no wall-clock labels).
 
-**Time spent (Day 3, all sessions):** ~12.5 hours combined (rough estimate).
+**Time spent (Day 3, all sessions):** ~14 hours combined (rough estimate).
 
 ### Session 1 — Document AI OCR, confidence architecture, model selection
 
@@ -236,3 +236,44 @@ Entries for this calendar day are grouped into **sessions** (numbered in chronol
 
 - **Hand-rolled tour** — matches existing patterns (Zustand + Tailwind), avoids dependency weight for a short linear flow.
 - **Persist only “has seen welcome”** — mid-tour step is not persisted across refresh (simpler state; user can restart from nav).
+
+---
+
+### Session 5 — Corrections logic overhaul & metrics integrity fixes
+
+**Time spent:** ~1.5 hours
+
+#### Bug: array fields always flagged as corrections
+
+- **Root cause:** Extraction stores array fields (ICD-10, CPT codes, medications, etc.) as multiple `ExtractionField` rows with random UUIDs. `saveFormDraft` joined form values in **form order** but DB rows in **UUID sort order** — always different strings despite identical content → every array field was falsely `wasCorrected = true` on any save, regardless of whether the user changed anything.
+- **Secondary effect:** The old code also wrote the full joined string (e.g. `"G47.00, M51.16, K21.0"`) as `finalValue` for **every** row in an array group, causing the metrics display to show repeated blob content for Original vs Corrected.
+
+#### Fix: logical field grouping + order-insensitive comparison
+
+- `saveFormDraft` groups all `ExtractionField` rows by `(section, fieldName)` before comparing.
+- **Scalar fields** — `scalarDiffers` in `src/lib/corrections/compare-values.ts`: case-insensitive, trim-normalized.
+- **Array fields** — `arrayDiffers`: sorts both sides alphabetically before comparing as multisets; pure reordering is never a correction.
+- **Revert-to-original clears the flag** — if saved value matches `autoValue` (case-insensitive), `wasCorrected` flips back to `false`.
+- Each array row's `finalValue` is now set to its own item value (not the joined blob).
+- Shared helpers: `src/lib/corrections/compare-values.ts`, `src/lib/corrections/field-group.ts`.
+
+#### Metrics SQL rewrite (logical field counts)
+
+- Fields corrected count and section breakdown use raw SQL with `bool_or(was_corrected)` grouped by `(case_id, section, field_name)` — one correction per logical field, not per DB row.
+- Recent corrections list: one row per logical field via SQL `string_agg(... ORDER BY value)`, ordered by `cases.updated_at` (last save).
+- `revalidatePath('/metrics')` added to `saveFormDraft` so metrics refresh immediately after any save.
+- Annie's context uses deduplicated logical correction count.
+
+#### UX: hover compare tooltip on corrections table
+
+- Hovering either the Original or Corrected cell opens a tooltip showing **both full values** side by side — scrollable, monospace, max-width 28rem.
+
+#### Legacy data fix
+
+- `scripts/fix-legacy-array-finalvalues.ts`: detects rows where `finalValue` equals the old joined blob, resets to `autoValue` + `wasCorrected = false`. Found and fixed **1 field group (2 rows)** in the production DB.
+
+#### Key decisions (session 5)
+
+- **Multiset comparison, not ordered join** — clinical array fields (ICD-10 code lists) have no meaningful order; any order-sensitive comparison was guaranteed to create noise.
+- **Case-insensitive everywhere** — medical text conventions vary (capitalisation, trailing periods); normalisation prevents trivial saves from generating false corrections.
+- **One-time script, not a migration** — the legacy fix is idempotent and safe to re-run; data self-heals on the next user save anyway, so no schema change was needed.
