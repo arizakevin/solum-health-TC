@@ -6,7 +6,7 @@ alwaysApply: false
 
 # React Component Patterns
 
-When building or refactoring React components in this project, apply the patterns from the **react-component-patterns** skill.
+When building or refactoring React components in this project, align with the **react-best-practices** skill snapshot in [`docs/agent/skills/react-best-practices/`](../skills/react-best-practices/) (performance and structure), and the conventions below.
 
 ## Project Conventions
 
