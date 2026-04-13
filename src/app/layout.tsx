@@ -1,4 +1,3 @@
-import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "next-themes";
@@ -6,6 +5,7 @@ import { NavigationProgress } from "@/components/navigation-progress";
 import { QueryProvider } from "@/components/query-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { WebAnalytics } from "@/components/web-analytics";
 import { APP_DESCRIPTION, APP_NAME } from "@/lib/brand";
 import "./globals.css";
 
@@ -43,7 +43,7 @@ export default function RootLayout({
 						</TooltipProvider>
 					</QueryProvider>
 				</ThemeProvider>
-				<Analytics />
+				<WebAnalytics />
 			</body>
 		</html>
 	);
