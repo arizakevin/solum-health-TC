@@ -1,5 +1,37 @@
 # Dev log
 
+## Project Evolution Path
+
+```mermaid
+flowchart TD
+    classDef milestone fill:#e2e8f0,stroke:#64748b,stroke-width:2px,color:#0f172a,font-weight:bold;
+    classDef task fill:#f1f5f9,stroke:#94a3b8,stroke-width:1px,color:#334155;
+
+    Start((Challenge & Requirements)) --> Plan{Day 1: Planning}
+    
+    Plan --> |Wireframes & Stack Choices| Arch[Architecture & Implementation Plan]:::task
+    Arch --> MVP{Day 2: MVP Core}
+    
+    MVP --> |Supabase & Prisma| DB[Robust Database & Auth Setup]:::task
+    DB --> |Gemini SDK & Zod| Extract[Structured Extraction Foundation]:::task
+    Extract --> |Metrics & Edits| Review[Case Review UI & Data Binding]:::task
+    Review --> Expand{Day 3: Expansion & UX}
+    
+    Expand --> |TanStack & Responsiveness| Dash[Dashboard Filters & Mobile Polish]:::task
+    Dash --> |Metric isolation| Data[Completeness vs Confidence Split]:::task
+    Data --> |Zustand| Tour[Guided Interactive Tutorial]:::task
+    Tour --> Polish{Day 4: Hardening}
+
+    Polish --> |Dual-fallback| OpenAI[OpenAI Streaming & Live Docs]:::task
+    OpenAI --> |Token cost savings| Filter[AI Invalid-Document Rejection]:::task
+    Filter --> |Vercel boundaries| UI[4.5MB Payload Caps & Error UX]:::task
+    UI --> |Browser Subagent E2E| Prod(((Final Vercel Deployment)))
+
+    class Start,Plan,MVP,Expand,Polish,Prod milestone;
+```
+
+---
+
 ## Day 1 — April 10, 2026 (Planning & Architecture)
 
 **Time spent:** ~6 hours
@@ -316,3 +348,32 @@ Entries for this calendar day are grouped into **sessions** (numbered in chronol
 #### Backlog (not shipped)
 
 - **Synthetic extraction test corpus:** dynamically generate many document variants from the original sample set (fictitious patients, mixed document types) via a custom pipeline, then batch-run extraction quality metrics — planned for a later session.
+
+---
+
+### Session 2 — Document Validation Hardening, E2E Testing, & Upload Limits
+
+**Time spent:** ~3 hours
+
+#### Document AI Validation Hardening
+- **Problem:** Users could upload irrelevant non-medical files (photos, random PDFs, etc.), triggering full AI extraction pipelines. This wasted AI tokens, caused indeterminate `Extracting` status loops, and polluted the database with 0-confidence ghost data.
+- **Solution:** 
+  - Overhauled `serviceRequestSchema` to rigorously mandate an `isValidDocument` classification and `rejectionReason`.
+  - Wired `src/lib/extraction/run-case-extraction.ts` to intercept `isValidDocument: false` immediately post-analysis. It halts further queries, drops the Case status efficiently back to `Draft`, and surfaces the `rejectionReason` via `sonner` toast directly on the frontend.
+- **Result:** Provides extreme token savings and infrastructure relief (operational cost reduction) while treating users to an expected UX gracefully rejecting invalid documentation.
+
+#### Multi-Format Transformation & Stability
+- **Problem:** Extending our compatibility pipeline guaranteeing extraction integrity for non-PDFs (JPGs, PNGs).
+- **Setup:** Bootstrapped the script `generate-test-formats.sh` utilizing macOS native APIs (`sips`) to generate diverse variations from the PDF core sources without third-party Ghostscript limits.
+- **Visual Integration:** Successfully rendered and extracted `JPG` elements via the newly hardened UI Preview frame and pipeline parsing.
+
+#### Dropzone File Constraint Caps (UX)
+- **Problem:** Native Vercel serverless domains halt processing of payload chunks strictly > 4.5MB, yielding an opaque `413 Content Too Large` UI break.
+- **Solution:** 
+  - Centralized target restrictions client-side: limiting uploads precisely across 4.5MB.
+  - Files bridging that cap or attempting unaccepted extensions are thrown off prior to staging. A generic `sonner` toast intercepts it ("Maximum allowed file size is 4.5MB") leaving the local queue fully clean.
+- **Result:** Drastic upload UX improvement; dead-end exceptions eliminated.
+
+#### Cloud & Browser E2E Integrations
+- Actuated automated **Antigravity Browser Agent** runs directly against local deployment (`localhost:3000`) evaluating the unhandled "duck-image" testing constraints. Validated all `toast` triggers and image rendering logic.
+- Conducted the identical framework sanity checks atop the deployed Vercel platform, successfully certifying parity end-to-end!
