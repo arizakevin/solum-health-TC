@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { DocsCopyButton } from "@/components/docs/docs-copy-button";
 import { DocsGithubBanner } from "@/components/docs/docs-github-banner";
 import { DocsMarkdown } from "@/components/docs/docs-markdown";
 import { DocsPager } from "@/components/docs/docs-pager";
@@ -57,7 +58,9 @@ export default async function DocsPage({
 
 	return (
 		<div>
-			<DocsGithubBanner relFromDocs={resolved.relFromDocs} />
+			<DocsGithubBanner relFromDocs={resolved.relFromDocs}>
+				<DocsCopyButton content={content} />
+			</DocsGithubBanner>
 			<DocsMarkdown content={content} docRelFromDocs={resolved.relFromDocs} />
 			<DocsPager relFromDocs={resolved.relFromDocs} />
 		</div>

@@ -3,9 +3,13 @@ import { getDocsGithubFileUrl } from "@/lib/docs/doc-href";
 
 type DocsGithubBannerProps = {
 	relFromDocs: string;
+	children?: React.ReactNode;
 };
 
-export function DocsGithubBanner({ relFromDocs }: DocsGithubBannerProps) {
+export function DocsGithubBanner({
+	relFromDocs,
+	children,
+}: DocsGithubBannerProps) {
 	const url = getDocsGithubFileUrl(relFromDocs);
 	return (
 		<div className="mb-6 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
@@ -16,15 +20,18 @@ export function DocsGithubBanner({ relFromDocs }: DocsGithubBannerProps) {
 				</code>{" "}
 				as on GitHub.
 			</span>
-			<a
-				href={url}
-				target="_blank"
-				rel="noopener noreferrer"
-				className="inline-flex shrink-0 items-center gap-1 font-medium text-primary underline-offset-4 hover:underline"
-			>
-				View on GitHub
-				<ExternalLink className="size-3.5" aria-hidden />
-			</a>
+			<div className="flex items-center gap-4">
+				<a
+					href={url}
+					target="_blank"
+					rel="noopener noreferrer"
+					className="inline-flex shrink-0 items-center gap-1 font-medium text-primary underline-offset-4 hover:underline"
+				>
+					View on GitHub
+					<ExternalLink className="size-3.5" aria-hidden />
+				</a>
+				{children}
+			</div>
 		</div>
 	);
 }

@@ -11,6 +11,7 @@ const emptyField = (): ExtractedField => ({
 /** Valid empty extraction for read-only UI previews (e.g. guided tour). */
 export function createEmptyServiceRequestExtraction(): ServiceRequestExtraction {
 	return {
+		isValidDocument: true,
 		header: {
 			payer: emptyField(),
 			dateOfRequest: emptyField(),

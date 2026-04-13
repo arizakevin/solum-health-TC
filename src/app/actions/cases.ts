@@ -114,7 +114,7 @@ export async function createCase() {
 		dbUser = await prisma.user.create({
 			data: {
 				id: user.id,
-				email: user.email!,
+				email: user.email as string,
 				fullName: user.user_metadata?.full_name ?? null,
 			},
 		});
