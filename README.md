@@ -2,6 +2,12 @@
 
 An AI-powered healthcare document extraction system that automates service request form completion using Google Gemini, with human-in-the-loop review and correction tracking.
 
+## Documentation
+
+All long-form docs live under **[`docs/`](docs/)**. Start from the hub index **[`docs/README.md`](docs/README.md)** for a categorized map (architecture, AI pipeline, OCR, challenge notes, wireframes, dev log, Cursor/agent material).
+
+**Quick links:** [Implementation plan](docs/implementation-plan.md) · [Wireframes](docs/wireframes/README.md) · [Document AI OCR](docs/document-ai-ocr.md) · [LLM model decisions](docs/llm-model-decisions.md) · [Extraction confidence](docs/extraction-confidence.md) · [Dev log](docs/DEVLOG.md) · [AI tooling](docs/ai-tooling.md) · [Agent rules & skills](docs/agent/README.md)
+
 ## Live Demo
 
 - **Vercel**: [solum-health-tc.vercel.app](https://solum-health-tc.vercel.app)
@@ -64,7 +70,7 @@ An AI-powered healthcare document extraction system that automates service reque
 | Storage | Supabase Storage |
 | AI | Google Gemini 3.x (`@google/genai` SDK) — see [`docs/llm-model-decisions.md`](docs/llm-model-decisions.md) |
 | PDF | `@react-pdf/renderer` (server-side) |
-| OCR | `pdfjs-dist` (text extraction); optional **Cloud Document AI** (see `docs/document-ai-ocr.md`) |
+| OCR | `pdfjs-dist` (text extraction); optional **Cloud Document AI** — see [`docs/document-ai-ocr.md`](docs/document-ai-ocr.md) |
 | Linting | Biome 2.4, Husky, lint-staged |
 | CI | GitHub Actions (Biome + TypeScript check) |
 
