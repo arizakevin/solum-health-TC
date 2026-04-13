@@ -1,6 +1,8 @@
 import { getMetricsData } from "@/app/actions/metrics";
 import { MetricsDashboard } from "@/components/metrics-dashboard";
 
+/** Same as dashboard: avoid Prisma during `next build` on CI/Vercel. */
+export const dynamic = "force-dynamic";
 export const revalidate = 60;
 
 export default async function MetricsPage() {

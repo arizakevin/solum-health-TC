@@ -5,6 +5,9 @@ import { createCase, getCasesPage } from "@/app/actions/cases";
 import { DashboardClient } from "@/components/dashboard-client";
 import { Button } from "@/components/ui/button";
 
+/** Prisma must not run at build time (e.g. Vercel has no DB / IPv6 to pooler). */
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
 	const initialData = await getCasesPage({}, 1, 20);
 
