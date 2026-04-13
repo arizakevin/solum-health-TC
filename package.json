@@ -68,5 +68,15 @@
 	},
 	"lint-staged": {
 		"*.{ts,tsx,js,json,css,md}": "biome check --fix --no-errors-on-unmatched"
+	},
+	"pnpm": {
+		"onlyBuiltDependencies": [
+			"@prisma/engines",
+			"esbuild",
+			"msw",
+			"prisma",
+			"protobufjs",
+			"sharp"
+		]
 	}
 }
