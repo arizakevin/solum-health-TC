@@ -1,12 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
-import { getCasesPage } from "@/app/actions/cases";
-import {
-	type TooltipPosition,
-	TutorialOverlay,
-} from "@/components/tutorial/tutorial-overlay";
+import type { ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo } from "react";
+import { TutorialOverlay } from "@/components/tutorial/tutorial-overlay";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -16,59 +14,83 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { APP_DESCRIPTION, APP_NAME } from "@/lib/brand";
+import { APP_DESCRIPTION, APP_NAME, PRODUCT_NAME } from "@/lib/brand";
+import {
+	STEP_APPROVE,
+	STEP_CASE_REVIEW,
+	STEP_DASHBOARD,
+	STEP_EXTRACTION_SETTINGS,
+	STEP_FINALE,
+	STEP_FORM,
+	STEP_GENERATED_PDF,
+	STEP_NEW_CASE,
+	STEP_RUN_EXTRACT,
+	STEP_TRY_UPLOAD,
+	STEP_UPLOADS_INTRO,
+	TUTORIAL_STEPS,
+} from "@/lib/tutorial-steps";
 import { useTutorialStore } from "@/stores/tutorial-store";
+import { useTutorialTourSignalsStore } from "@/stores/tutorial-tour-signals-store";
 
-interface TourStep {
-	targetId: string;
-	title: string;
-	content: string;
-	position: TooltipPosition;
-	routePrefix: string;
+function parseCaseIdFromPath(pathname: string): string | null {
+	const m = pathname.match(/^\/case\/([^/]+)/);
+	const raw = m?.[1] ?? null;
+	return raw ? raw.toLowerCase() : null;
 }
 
-const STEPS: TourStep[] = [
-	{
-		targetId: "case-list-table",
-		title: "Case dashboard",
-		content:
-			"This is your case dashboard. Each row is a patient case with uploaded documents and extraction status.",
-		position: "bottom",
-		routePrefix: "/",
-	},
-	{
-		targetId: "btn-new-case",
-		title: "New case",
-		content:
-			"Start a new case to upload clinical documents. Supported formats: PDF, PNG, JPG, TIFF.",
-		position: "bottom",
-		routePrefix: "/",
-	},
-	{
-		targetId: "case-review-grid",
-		title: "Case review",
-		content:
-			"After extraction, review AI-filled fields side-by-side with source documents. Edit any field to correct it.",
-		position: "center",
-		routePrefix: "/case/",
-	},
-	{
-		targetId: "btn-approve-pdf",
-		title: "Approve and PDF",
-		content:
-			"When you are satisfied, approve and generate a completed service request form as a PDF.",
-		position: "top",
-		routePrefix: "/case/",
-	},
-	{
-		targetId: "metrics-cards",
-		title: "Metrics",
-		content:
-			"Track extraction confidence, form completeness, and correction rates across all cases.",
-		position: "bottom",
-		routePrefix: "/metrics",
-	},
-];
+function normalizeAnchor(id: string | null): string | null {
+	return id ? id.toLowerCase() : null;
+}
+
+function isCasePdfPath(pathname: string, caseId: string): boolean {
+	const pathOnly = (pathname.split("?")[0] ?? pathname).toLowerCase();
+	const id = caseId.toLowerCase();
+	const prefix = `/case/${id}/pdf`;
+	return (
+		pathOnly === prefix ||
+		pathOnly === `${prefix}/` ||
+		pathOnly.startsWith(`${prefix}/`)
+	);
+}
+
+/**
+ * Whether the current URL is allowed for this step.
+ * `STEP_GENERATED_PDF` must be on `/case/:id/pdf` so “Back to Case” does not
+ * leave the tour on the wrong step; earlier case steps may be on review or PDF
+ * during navigation transitions.
+ */
+function isTutorialStepOnAllowedPath(
+	pathname: string,
+	step: number,
+	tourAnchorCaseId: string | null,
+): boolean {
+	if (step === STEP_FINALE) return true;
+
+	const pathOnly = pathname.split("?")[0] ?? pathname;
+	const caseIdFromPath = parseCaseIdFromPath(pathname);
+	const onDashboard = pathOnly === "/";
+	const onCasePage = Boolean(caseIdFromPath) && pathOnly.startsWith("/case/");
+	const anchorNorm = normalizeAnchor(tourAnchorCaseId);
+
+	if (step === STEP_DASHBOARD || step === STEP_NEW_CASE) {
+		return onDashboard || onCasePage;
+	}
+
+	if (step === STEP_GENERATED_PDF) {
+		if (!caseIdFromPath) return false;
+		const anchorId = anchorNorm ?? caseIdFromPath;
+		if (anchorNorm && caseIdFromPath !== anchorNorm) return false;
+		return isCasePdfPath(pathOnly, anchorId);
+	}
+
+	if (step >= STEP_UPLOADS_INTRO && step <= STEP_APPROVE) {
+		if (!onCasePage) return false;
+		if (!anchorNorm) return true;
+		return caseIdFromPath === anchorNorm;
+	}
+
+	return true;
+}
 
 export function TutorialManager() {
 	const pathname = usePathname();
@@ -80,82 +102,138 @@ export function TutorialManager() {
 		startTutorial,
 		nextStep,
 		setTutorialStep,
+		setTourAnchorCaseId,
 		skipTutorial,
+		resetTutorial,
 	} = useTutorialStore();
 
-	const [firstCaseId, setFirstCaseId] = useState<string | null>(null);
-	const [caseFetchDone, setCaseFetchDone] = useState(false);
+	const tourCase = useTutorialTourSignalsStore((s) => s.case);
 
 	const showWelcome = pathname === "/" && !hasSeenTutorial && !isTutorialActive;
 
-	const step = isTutorialActive ? STEPS[currentStep] : null;
-	const isLast = currentStep >= STEPS.length - 1;
+	const step = isTutorialActive ? TUTORIAL_STEPS[currentStep] : null;
+	const isLast = currentStep >= TUTORIAL_STEPS.length - 1;
+
+	const activeCaseIdFromPath = parseCaseIdFromPath(pathname);
+	const tutorialExtractingWait =
+		Boolean(step) &&
+		isTutorialActive &&
+		currentStep === STEP_RUN_EXTRACT &&
+		tourCase !== null &&
+		activeCaseIdFromPath === tourCase.caseId &&
+		!tourCase.hasExtraction &&
+		(tourCase.isExtracting || tourCase.caseStatus === "Extracting");
 
 	useEffect(() => {
 		if (!isTutorialActive) {
-			setFirstCaseId(null);
-			setCaseFetchDone(false);
-			return;
+			useTutorialTourSignalsStore.getState().setTourCaseSignals(null);
 		}
-		setCaseFetchDone(false);
-		getCasesPage({}, 1, 1)
-			.then((r) => {
-				setFirstCaseId(r.cases[0]?.id ?? null);
-			})
-			.finally(() => {
-				setCaseFetchDone(true);
-			});
 	}, [isTutorialActive]);
 
-	/** When the user navigates manually, align the tour step to the obvious screen. */
-	useEffect(() => {
+	/**
+	 * Sync tutorial step with route + case signals, then enforce allowed paths.
+	 * `useLayoutEffect` runs before paint so we never flash a disallowed URL/step
+	 * combo (the separate `useEffect` guard could run before sync and call
+	 * `skipTutorial()` while `currentStep` was still stale from the last render).
+	 */
+	// biome-ignore lint/correctness/useExhaustiveDependencies: `currentStep` must re-run this effect when the tour step changes from the store; the body uses getState() for ordering-sensitive reads.
+	useLayoutEffect(() => {
 		if (!isTutorialActive) return;
 
-		if (pathname.startsWith("/metrics")) {
-			if (currentStep !== STEPS.length - 1) {
-				setTutorialStep(STEPS.length - 1);
-			}
+		const pathOnly = pathname.split("?")[0] ?? pathname;
+		const caseIdFromPath = parseCaseIdFromPath(pathname);
+		const sig = tourCase;
+		const sigCaseNorm = sig?.caseId ? sig.caseId.toLowerCase() : null;
+
+		let { currentStep: step, tourAnchorCaseId: anchor } =
+			useTutorialStore.getState();
+
+		if (
+			caseIdFromPath &&
+			!normalizeAnchor(anchor) &&
+			(step === STEP_APPROVE || step === STEP_GENERATED_PDF) &&
+			isCasePdfPath(pathOnly, caseIdFromPath)
+		) {
+			setTourAnchorCaseId(caseIdFromPath);
+			({ currentStep: step, tourAnchorCaseId: anchor } =
+				useTutorialStore.getState());
+		}
+
+		let anchorKey = normalizeAnchor(anchor);
+
+		if (
+			step === STEP_GENERATED_PDF &&
+			anchorKey &&
+			caseIdFromPath === anchorKey &&
+			!isCasePdfPath(pathOnly, anchorKey)
+		) {
+			setTutorialStep(STEP_APPROVE);
 			return;
 		}
 
-		if (/^\/case\/[^/]+/.test(pathname)) {
-			if (currentStep <= 1) {
-				setTutorialStep(2);
+		const onCaseReview =
+			Boolean(caseIdFromPath) &&
+			!pathOnly.includes("/pdf") &&
+			pathOnly.startsWith("/case/");
+
+		step = useTutorialStore.getState().currentStep;
+		anchorKey = normalizeAnchor(useTutorialStore.getState().tourAnchorCaseId);
+		if (step === STEP_NEW_CASE && onCaseReview && caseIdFromPath) {
+			if (!anchorKey) {
+				setTourAnchorCaseId(caseIdFromPath);
 			}
+			setTutorialStep(STEP_UPLOADS_INTRO);
 			return;
 		}
 
-		if (pathname === "/") {
-			if (currentStep >= 2 && currentStep <= STEPS.length - 1) {
-				setTutorialStep(0);
+		if (
+			anchorKey &&
+			caseIdFromPath === anchorKey &&
+			sig &&
+			sigCaseNorm === anchorKey
+		) {
+			if (step === STEP_TRY_UPLOAD && sig.documentCount >= 1) {
+				setTutorialStep(STEP_EXTRACTION_SETTINGS);
+				return;
+			}
+
+			if (step === STEP_RUN_EXTRACT && sig.hasExtraction) {
+				setTutorialStep(STEP_FORM);
+				return;
+			}
+
+			if (step === STEP_CASE_REVIEW && sig.sideBySidePreviewOpen) {
+				setTutorialStep(STEP_APPROVE);
+				return;
 			}
 		}
-	}, [isTutorialActive, pathname, currentStep, setTutorialStep]);
 
-	const pushRouteForStep = useCallback(
-		(stepIndex: number) => {
-			if (stepIndex <= 1) {
-				if (pathname !== "/") router.push("/");
-				return;
-			}
-			if (stepIndex === 2 || stepIndex === 3) {
-				if (!firstCaseId) return;
-				const expected = `/case/${firstCaseId}`;
-				if (!pathname.startsWith(expected)) router.push(expected);
-				return;
-			}
-			if (stepIndex === STEPS.length - 1 && !pathname.startsWith("/metrics")) {
-				router.push("/metrics");
-			}
-		},
-		[pathname, router, firstCaseId],
-	);
+		step = useTutorialStore.getState().currentStep;
+		anchorKey = normalizeAnchor(useTutorialStore.getState().tourAnchorCaseId);
+		if (
+			step === STEP_APPROVE &&
+			anchorKey &&
+			caseIdFromPath === anchorKey &&
+			isCasePdfPath(pathOnly, anchorKey)
+		) {
+			setTutorialStep(STEP_GENERATED_PDF);
+			return;
+		}
 
-	const showNeedsCase =
-		isTutorialActive &&
-		caseFetchDone &&
-		(currentStep === 2 || currentStep === 3) &&
-		!firstCaseId;
+		const { tourAnchorCaseId: anchorAfter, currentStep: stepAfter } =
+			useTutorialStore.getState();
+		if (!isTutorialStepOnAllowedPath(pathname, stepAfter, anchorAfter)) {
+			skipTutorial();
+		}
+	}, [
+		isTutorialActive,
+		pathname,
+		currentStep,
+		tourCase,
+		setTutorialStep,
+		setTourAnchorCaseId,
+		skipTutorial,
+	]);
 
 	const handleWelcomeOpenChange = useCallback(
 		(open: boolean) => {
@@ -169,81 +247,134 @@ export function TutorialManager() {
 			skipTutorial();
 			return;
 		}
-		const nextIdx = currentStep + 1;
-		nextStep();
-		pushRouteForStep(nextIdx);
-	}, [currentStep, isLast, nextStep, pushRouteForStep, skipTutorial]);
+		if (TUTORIAL_STEPS[currentStep]?.advance === "manual") {
+			nextStep();
+		}
+	}, [currentStep, isLast, nextStep, skipTutorial]);
 
 	const handleSkipTour = useCallback(() => {
 		skipTutorial();
 	}, [skipTutorial]);
 
-	const handleNeedsCaseDismiss = useCallback(() => {
-		skipTutorial();
-	}, [skipTutorial]);
+	const handleRestartTour = useCallback(() => {
+		resetTutorial();
+		router.push("/");
+	}, [resetTutorial, router]);
+
+	const hideNextButton =
+		!isLast && TUTORIAL_STEPS[currentStep]?.advance === "wait";
+
+	const finaleFooter = useMemo(
+		() => (
+			<div className="flex flex-wrap gap-2">
+				<Button type="button" size="sm" onClick={handleNext}>
+					Done
+				</Button>
+				<Button
+					type="button"
+					size="sm"
+					variant="outline"
+					onClick={handleRestartTour}
+				>
+					Restart tour
+				</Button>
+			</div>
+		),
+		[handleNext, handleRestartTour],
+	);
+
+	const finaleDescription = useMemo(
+		() => (
+			<div className="mt-2 space-y-2 text-sm leading-relaxed text-muted-foreground">
+				<p>
+					That is the end of the guided tour. For extraction confidence, form
+					completeness, and correction activity across cases, use the{" "}
+					<Link
+						href="/metrics"
+						className="font-medium text-foreground underline underline-offset-2 hover:text-primary"
+					>
+						Metrics
+					</Link>{" "}
+					page from the top navigation when you are ready.
+				</p>
+				<p>
+					For architecture, data flow, and implementation notes, see the{" "}
+					<Link
+						href="/docs"
+						className="font-medium text-foreground underline underline-offset-2 hover:text-primary"
+					>
+						technical documentation for {PRODUCT_NAME}
+					</Link>
+					. You can restart the guided tour at any time from the account menu in
+					the header—the circular control that shows your initials.
+				</p>
+			</div>
+		),
+		[],
+	);
+
+	const overlayContent: ReactNode = useMemo(() => {
+		if (tutorialExtractingWait) {
+			return "Please wait while your uploads are processed. When extraction finishes, values flow into the request form and the tour continues on its own — no action needed here.";
+		}
+		if (step?.centered) return finaleDescription;
+		return step?.content ?? "";
+	}, [
+		tutorialExtractingWait,
+		step?.centered,
+		step?.content,
+		finaleDescription,
+	]);
 
 	return (
 		<>
-			<Dialog open={showWelcome} onOpenChange={handleWelcomeOpenChange}>
-				<DialogContent className="sm:max-w-md" showCloseButton>
-					<DialogHeader>
-						<DialogTitle>Welcome to {APP_NAME}</DialogTitle>
-						<DialogDescription>{APP_DESCRIPTION}</DialogDescription>
-					</DialogHeader>
-					<DialogFooter className="gap-2 sm:justify-end">
-						<Button
-							variant="outline"
-							type="button"
-							onClick={() => skipTutorial()}
-						>
-							Skip
-						</Button>
-						<Button
-							type="button"
-							onClick={() => {
-								startTutorial();
-								if (pathname !== "/") router.push("/");
-							}}
-						>
-							Take a quick tour
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+			{showWelcome ? (
+				<Dialog defaultOpen onOpenChange={handleWelcomeOpenChange}>
+					<DialogContent className="sm:max-w-md" showCloseButton>
+						<DialogHeader>
+							<DialogTitle>Welcome to {APP_NAME}</DialogTitle>
+							<DialogDescription>{APP_DESCRIPTION}</DialogDescription>
+						</DialogHeader>
+						<DialogFooter className="gap-2 sm:justify-end">
+							<Button
+								variant="outline"
+								type="button"
+								onClick={() => skipTutorial()}
+							>
+								Skip
+							</Button>
+							<Button
+								type="button"
+								onClick={() => {
+									startTutorial();
+									if (pathname !== "/") router.push("/");
+								}}
+							>
+								Take a quick tour
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
+			) : null}
 
-			<Dialog
-				open={showNeedsCase}
-				onOpenChange={(o) => !o && handleNeedsCaseDismiss()}
-			>
-				<DialogContent className="sm:max-w-md" showCloseButton>
-					<DialogHeader>
-						<DialogTitle>Create a case first</DialogTitle>
-						<DialogDescription>
-							The next tour steps show case review and PDF approval. Create a
-							case from the dashboard, then use &quot;Restart guided tour&quot;
-							in the menu when you are ready.
-						</DialogDescription>
-					</DialogHeader>
-					<DialogFooter>
-						<Button type="button" onClick={handleNeedsCaseDismiss}>
-							OK
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
-
-			{step && isTutorialActive && !showNeedsCase && (
+			{step && isTutorialActive && (
 				<TutorialOverlay
 					open
+					routeKey={pathname}
 					stepIndex={currentStep}
-					stepCount={STEPS.length}
-					title={step.title}
-					content={step.content}
+					stepCount={TUTORIAL_STEPS.length}
+					title={tutorialExtractingWait ? "Extracting documents" : step.title}
+					content={overlayContent}
 					position={step.position}
 					targetId={step.targetId}
 					onNext={handleNext}
 					onSkip={handleSkipTour}
 					isLast={isLast}
+					hideNextButton={hideNextButton}
+					dock={tutorialExtractingWait ? "bottom-right" : undefined}
+					centered={Boolean(step.centered || step.introCentered)}
+					footer={currentStep === STEP_FINALE ? finaleFooter : undefined}
+					showSkip={currentStep !== STEP_FINALE}
 				/>
 			)}
 		</>

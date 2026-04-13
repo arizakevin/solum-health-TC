@@ -2,6 +2,7 @@ import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "next-themes";
+import { NavigationProgress } from "@/components/navigation-progress";
 import { QueryProvider } from "@/components/query-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -33,6 +34,7 @@ export default function RootLayout({
 				className="min-h-full bg-background font-sans text-foreground"
 				suppressHydrationWarning
 			>
+				<NavigationProgress />
 				<ThemeProvider attribute="class" defaultTheme="system" enableSystem>
 					<QueryProvider>
 						<TooltipProvider>
