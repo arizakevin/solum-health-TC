@@ -1,5 +1,6 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -32,6 +33,7 @@ export function DeleteCaseButton({
 	redirectHome = false,
 }: DeleteCaseButtonProps) {
 	const router = useRouter();
+	const queryClient = useQueryClient();
 	const [open, setOpen] = useState(false);
 	const [pending, setPending] = useState(false);
 
@@ -40,6 +42,7 @@ export function DeleteCaseButton({
 		try {
 			await deleteCase(caseId);
 			setOpen(false);
+			await queryClient.invalidateQueries({ queryKey: ["cases"] });
 			if (redirectHome) {
 				router.push("/");
 			}

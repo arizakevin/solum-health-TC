@@ -1,10 +1,11 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Search, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
 	type CaseFilters,
 	deleteCases,
@@ -63,6 +64,7 @@ export function DashboardClient({
 	initialData: PaginatedCases;
 }) {
 	const router = useRouter();
+	const queryClient = useQueryClient();
 	const searchParams = useSearchParams();
 
 	const [search, setSearch] = useState(searchParams.get("search") ?? "");
@@ -140,12 +142,18 @@ export function DashboardClient({
 	async function handleBulkDelete() {
 		setIsDeleting(true);
 		try {
+			const count = selected.size;
 			await deleteCases([...selected]);
 			setSelected(new Set());
 			setShowBulkConfirm(false);
+			await queryClient.invalidateQueries({ queryKey: ["cases"] });
 			router.refresh();
+			toast.success(count === 1 ? "Case deleted" : `${count} cases deleted`);
 		} catch (err) {
 			console.error("Bulk delete failed:", err);
+			const message =
+				err instanceof Error ? err.message : "Could not delete selected cases";
+			toast.error(message);
 		} finally {
 			setIsDeleting(false);
 		}
@@ -301,7 +309,9 @@ export function DashboardClient({
 								<TableHead>Status</TableHead>
 								<TableHead>Documents</TableHead>
 								<TableHead className="hidden md:table-cell">Created</TableHead>
-								<TableHead>Actions</TableHead>
+								<TableHead className="min-w-44 text-right whitespace-nowrap">
+									Actions
+								</TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>
@@ -309,8 +319,14 @@ export function DashboardClient({
 								<TableRow
 									key={c.id}
 									data-state={selected.has(c.id) ? "selected" : undefined}
+									className="cursor-pointer"
+									title="Open case"
+									onClick={() => router.push(`/case/${c.id}`)}
 								>
-									<TableCell className="pl-4 pr-0">
+									<TableCell
+										className="pl-4 pr-0"
+										onClick={(e) => e.stopPropagation()}
+									>
 										<input
 											type="checkbox"
 											checked={selected.has(c.id)}
@@ -322,7 +338,15 @@ export function DashboardClient({
 									<TableCell className="hidden font-mono text-xs md:table-cell">
 										#{c.id.slice(0, 8)}
 									</TableCell>
-									<TableCell>{c.patientName ?? "—"}</TableCell>
+									<TableCell>
+										<Link
+											href={`/case/${c.id}`}
+											className="text-foreground underline-offset-4 hover:underline"
+											onClick={(e) => e.stopPropagation()}
+										>
+											{c.patientName ?? "—"}
+										</Link>
+									</TableCell>
 									<TableCell>
 										<Badge variant={statusVariant(c.status)}>{c.status}</Badge>
 									</TableCell>
@@ -337,18 +361,24 @@ export function DashboardClient({
 											year: "numeric",
 										})}
 									</TableCell>
-									<TableCell>
-										<div className="flex items-center gap-3">
-											<Link
-												href={`/case/${c.id}`}
-												className="text-sm font-medium text-primary underline-offset-4 hover:underline"
-											>
-												View
-											</Link>
+									<TableCell
+										className="text-right whitespace-nowrap"
+										onClick={(e) => e.stopPropagation()}
+									>
+										<div className="flex flex-wrap items-center justify-end gap-x-5 gap-y-1">
+											{c.status === "Completed" && (
+												<Link
+													href={`/case/${c.id}/pdf`}
+													className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+												>
+													View PDF
+												</Link>
+											)}
 											<DeleteCaseButton
 												caseId={c.id}
 												caseDisplayId={`#${c.id.slice(0, 8)}`}
 												variant="link"
+												className="shrink-0"
 											/>
 										</div>
 									</TableCell>

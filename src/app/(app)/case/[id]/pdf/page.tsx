@@ -66,7 +66,10 @@ export default function PdfPreviewPage() {
 	}
 
 	return (
-		<div className="flex h-[calc(100vh-5rem)] flex-col">
+		<div
+			id="tour-tutorial-generated-pdf-view"
+			className="flex h-[calc(100vh-5rem)] min-h-0 flex-col"
+		>
 			<div className="mb-2 flex shrink-0 flex-wrap items-center justify-between gap-2">
 				<div className="min-w-0">
 					<p className="text-xs text-muted-foreground">

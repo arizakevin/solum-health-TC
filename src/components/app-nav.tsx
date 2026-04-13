@@ -22,6 +22,7 @@ import { useTutorialStore } from "@/stores/tutorial-store";
 const NAV_LINKS = [
 	{ href: "/", label: "Dashboard" },
 	{ href: "/metrics", label: "Metrics" },
+	{ href: "/docs", label: "Docs" },
 ] as const;
 
 export function AppNav() {
@@ -69,9 +70,12 @@ export function AppNav() {
 			<div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-4 sm:px-6">
 				<Link
 					href="/"
-					className="flex shrink-0 flex-col items-start justify-center gap-0 py-0 leading-none"
+					className="-mt-2 flex shrink-0 flex-col items-start justify-center gap-0 py-0 leading-none sm:-mt-2.5"
 				>
-					<AppLogo className="block h-11 w-auto max-w-[min(268px,calc(100vw-12rem))] object-left sm:h-12 sm:max-w-[min(300px,calc(100vw-12rem))]" />
+					<AppLogo
+						className="block h-11 w-auto max-w-[min(268px,calc(100vw-12rem))] object-left sm:h-12 sm:max-w-[min(300px,calc(100vw-12rem))]"
+						priority
+					/>
 					<span
 						className="-mt-2.5 self-stretch text-left text-[10px] font-medium leading-none tracking-tight text-muted-foreground"
 						style={{
@@ -85,11 +89,16 @@ export function AppNav() {
 				<nav className="hidden items-center gap-1 md:flex">
 					{NAV_LINKS.map(({ href, label }) => {
 						const isActive =
-							href === "/" ? pathname === "/" : pathname.startsWith(href);
+							href === "/"
+								? pathname === "/"
+								: href === "/docs"
+									? pathname === "/docs" || pathname.startsWith("/docs/")
+									: pathname === href || pathname.startsWith(`${href}/`);
 						return (
 							<Link
 								key={href}
 								href={href}
+								id={href === "/metrics" ? "tour-nav-metrics" : undefined}
 								className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
 									isActive
 										? "bg-accent text-accent-foreground"
@@ -143,7 +152,11 @@ export function AppNav() {
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end">
 							{NAV_LINKS.map(({ href, label }) => (
-								<DropdownMenuItem key={href} onClick={() => router.push(href)}>
+								<DropdownMenuItem
+									key={href}
+									data-tour-nav-metrics={href === "/metrics" ? "" : undefined}
+									onClick={() => router.push(href)}
+								>
 									{label}
 								</DropdownMenuItem>
 							))}
