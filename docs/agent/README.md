@@ -27,6 +27,8 @@ The skills here are **custom workflows** refined over time for day-to-day develo
 | [`skills/supabase/`](./skills/supabase/) | Supabase product surface, MCP, security checklist (Supabase-maintained skill text). |
 | [`skills/supabase-postgres-best-practices/`](./skills/supabase-postgres-best-practices/) | Postgres performance and RLS-oriented reference (Supabase-maintained). |
 | [`skills/biome-lint-fix/`](./skills/biome-lint-fix/) | Lint/format with Biome. |
+| [`skills/commit-push/`](./skills/commit-push/) | Conventional commits, staging review, push workflow. |
+| [`skills/persistent-problem-investigate/`](./skills/persistent-problem-investigate/) | Investigate before more changes when a bug survives repeated fixes. |
 | [`skills/react-best-practices/`](./skills/react-best-practices/) | React performance guide (summary + [`reference.md`](./skills/react-best-practices/reference.md)). |
 
 When a rule or skill changes in Cursor’s global library, refresh these copies if the repo should stay aligned.
