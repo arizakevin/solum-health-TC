@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
-import { AppLogo } from "@/components/app-logo";
+import { AppBrandLink } from "@/components/app-brand-link";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,7 +15,6 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LOGO_SUBTITLE_INSET_PERCENT, PRODUCT_NAME } from "@/lib/brand";
 import { createClient } from "@/lib/supabase/client";
 import { useTutorialStore } from "@/stores/tutorial-store";
 
@@ -68,23 +67,7 @@ export function AppNav() {
 	return (
 		<header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
 			<div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-4 sm:px-6">
-				<Link
-					href="/"
-					className="-mt-2 flex shrink-0 flex-col items-start justify-center gap-0 py-0 leading-none sm:-mt-2.5"
-				>
-					<AppLogo
-						className="block h-11 w-auto max-w-[min(268px,calc(100vw-12rem))] object-left sm:h-12 sm:max-w-[min(300px,calc(100vw-12rem))]"
-						priority
-					/>
-					<span
-						className="-mt-2.5 self-stretch text-left text-[10px] font-medium leading-none tracking-tight text-muted-foreground"
-						style={{
-							paddingLeft: `${LOGO_SUBTITLE_INSET_PERCENT}%`,
-						}}
-					>
-						{PRODUCT_NAME}
-					</span>
-				</Link>
+				<AppBrandLink priority />
 
 				<nav className="hidden items-center gap-1 md:flex">
 					{NAV_LINKS.map(({ href, label }) => {

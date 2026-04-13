@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { AppLogo } from "@/components/app-logo";
+import { AppBrandLink } from "@/components/app-brand-link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -74,8 +74,8 @@ export function SignInContent() {
 		<div className="flex min-h-screen items-center justify-center bg-muted/40 px-4">
 			<Card className="w-full max-w-sm">
 				<CardHeader className="text-center">
-					<div className="mx-auto mb-2 flex justify-center px-2">
-						<AppLogo className="max-w-full" priority />
+					<div className="mx-auto mb-2 flex w-fit max-w-full justify-center px-2">
+						<AppBrandLink className="mt-0 sm:mt-0" priority />
 					</div>
 					<CardTitle>
 						{mode === "sign-in"

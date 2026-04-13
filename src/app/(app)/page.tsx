@@ -1,15 +1,39 @@
 import { Plus } from "lucide-react";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import type { PaginatedCases } from "@/app/actions/cases";
 import { createCase, getCasesPage } from "@/app/actions/cases";
 import { DashboardClient } from "@/components/dashboard-client";
 import { Button } from "@/components/ui/button";
 
-/** Prisma must not run at build time (e.g. Vercel has no DB / IPv6 to pooler). */
 export const dynamic = "force-dynamic";
 
+const emptyCases: PaginatedCases = {
+	cases: [],
+	total: 0,
+	page: 1,
+	pageSize: 20,
+	pageCount: 1,
+};
+
+async function loadCases(): Promise<PaginatedCases> {
+	try {
+		return await getCasesPage({}, 1, 20);
+	} catch (err: unknown) {
+		const e = err as Error & { code?: string; meta?: unknown };
+		console.error("[Dashboard] getCasesPage failed:", {
+			name: e.name,
+			message: e.message,
+			code: e.code,
+			meta: e.meta,
+			stack: e.stack?.split("\n").slice(0, 6).join("\n"),
+		});
+		return emptyCases;
+	}
+}
+
 export default async function DashboardPage() {
-	const initialData = await getCasesPage({}, 1, 20);
+	const initialData = await loadCases();
 
 	return (
 		<div>
