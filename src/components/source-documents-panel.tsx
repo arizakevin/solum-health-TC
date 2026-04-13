@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { uploadDocument } from "@/app/actions/cases";
 import { DocumentPreviewDialog } from "@/components/document-preview-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +43,7 @@ const ACCEPTED_TYPES = [
 	"image/tiff",
 ];
 const ACCEPT_STRING = ".pdf,.png,.jpg,.jpeg,.tiff,.tif";
+const MAX_FILE_SIZE_BYTES = 4.5 * 1024 * 1024; // 4.5MB
 
 /** After the last in-flight upload ends, wait this long so multi-file drops (and quick follow-up picks) fire one completion callback. */
 const UPLOAD_COMPLETE_SETTLE_MS = 280;
@@ -58,8 +60,7 @@ interface UploadingFile {
 	id: string;
 	name: string;
 	progress: number;
-	status: "uploading" | "done" | "error";
-	error?: string;
+	status: "uploading" | "done";
 }
 
 interface SourceDocumentsPanelProps {
@@ -200,27 +201,12 @@ function SourceDocumentsListRows({
 						{u.status === "uploading" && (
 							<Progress value={u.progress} className="mt-1 h-1" />
 						)}
-						{u.status === "error" && (
-							<p className="text-xs text-destructive">{u.error}</p>
-						)}
 					</div>
 					{u.status === "uploading" && (
 						<Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />
 					)}
 					{u.status === "done" && (
 						<Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
-					)}
-					{u.status === "error" && (
-						<button
-							type="button"
-							onClick={() =>
-								setUploads((prev) => prev.filter((x) => x.id !== u.id))
-							}
-							className="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
-							aria-label="Dismiss"
-						>
-							<X className="h-3.5 w-3.5" />
-						</button>
 					)}
 				</div>
 			))}
@@ -314,17 +300,21 @@ export function SourceDocumentsPanel({
 				);
 				onEachUploadSuccess?.();
 			} catch (err) {
-				setUploads((prev) =>
-					prev.map((u) =>
-						u.id === id
-							? {
-									...u,
-									status: "error" as const,
-									error: err instanceof Error ? err.message : "Upload failed",
-								}
-							: u,
-					),
-				);
+				const errorMessage =
+					err instanceof Error ? err.message : "Upload failed";
+				const displayMessage =
+					errorMessage.includes("Unexpected token") &&
+					errorMessage.includes("is not valid JSON")
+						? "File exceeded the maximum allowed size (4.5MB) or the server returned a bad request."
+						: errorMessage.includes("413") ||
+								errorMessage.includes("Content Too Large")
+							? "File is too large (Maximum 4.5MB)."
+							: errorMessage;
+
+				toast.error(`Failed to upload ${file.name}`, {
+					description: displayMessage,
+				});
+				setUploads((prev) => prev.filter((u) => u.id !== id));
 			} finally {
 				pendingUploads.current -= 1;
 				if (pendingUploads.current === 0) {
@@ -355,9 +345,21 @@ export function SourceDocumentsPanel({
 
 	const addFiles = useCallback(
 		(files: FileList | File[]) => {
-			const accepted = Array.from(files).filter((f) =>
-				ACCEPTED_TYPES.includes(f.type),
-			);
+			const accepted = Array.from(files).filter((f) => {
+				if (!ACCEPTED_TYPES.includes(f.type)) {
+					toast.error(`Unsupported file type: ${f.name}`, {
+						description: "Please upload PDF, PNG, JPG, or TIFF files.",
+					});
+					return false;
+				}
+				if (f.size > MAX_FILE_SIZE_BYTES) {
+					toast.error(`File too large: ${f.name}`, {
+						description: "Maximum allowed file size is 4.5MB.",
+					});
+					return false;
+				}
+				return true;
+			});
 			for (const file of accepted) {
 				uploadFile(file);
 			}
@@ -449,7 +451,7 @@ export function SourceDocumentsPanel({
 								Add
 							</TooltipTrigger>
 							<TooltipContent side="bottom">
-								PDF, PNG, JPG, TIFF — or drag & drop
+								PDF, PNG, JPG, TIFF (Max 4.5MB) — or drag & drop
 							</TooltipContent>
 						</Tooltip>
 					</TooltipProvider>
@@ -481,7 +483,7 @@ export function SourceDocumentsPanel({
 							{isDragOver ? "Drop to upload" : "Upload documents"}
 						</p>
 						<p className="text-xs">
-							Drag & drop or click to browse — PDF, PNG, JPG, TIFF
+							Drag & drop or click to browse — PDF, PNG, JPG, TIFF (Max 4.5MB)
 						</p>
 					</button>
 				)}

@@ -460,8 +460,8 @@ export function CaseReviewClient({
 					{/* Document preview — left column when a doc is selected */}
 					{selectedPreviewDoc && (
 						<div className="flex min-w-0 flex-col rounded-lg border bg-card">
-							<div className="flex items-center justify-between border-b px-3 py-2">
-								<p className="truncate text-sm font-medium">
+							<div className="flex min-h-12 items-center justify-between gap-2 border-b px-3 py-2">
+								<p className="min-w-0 flex-1 truncate text-sm font-medium">
 									{selectedPreviewDoc.filename}
 								</p>
 								<button
@@ -488,9 +488,11 @@ export function CaseReviewClient({
 						className="flex min-h-0 min-w-0 flex-col rounded-lg border bg-card text-card-foreground"
 					>
 						{!showTutorialFormPreview && (
-							<div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
-								<h2 className="text-sm font-semibold">Request form</h2>
-								<div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+							<div className="flex min-h-12 items-center justify-between gap-2 border-b px-3 py-2">
+								<h2 className="min-w-0 shrink truncate text-sm font-semibold">
+									Request form
+								</h2>
+								<div className="flex shrink-0 flex-nowrap items-center justify-end gap-2 sm:gap-3">
 									{!formAllSectionsOpen && !accordionExclusiveMode && (
 										<Button
 											type="button"
