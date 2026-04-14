@@ -22,6 +22,7 @@ const NAV_LINKS = [
 	{ href: "/", label: "Dashboard" },
 	{ href: "/metrics", label: "Metrics" },
 	{ href: "/docs", label: "Docs" },
+	{ href: "/demo", label: "Demo" },
 ] as const;
 
 export function AppNav() {

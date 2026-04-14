@@ -11,8 +11,17 @@ All long-form docs live under **[`docs/`](docs/)**. Start from the hub index **[
 ## Live Demo
 
 - **Vercel**: [solum-health-tc.vercel.app](https://solum-health-tc.vercel.app)
-- **Loom Walkthrough**: _[Recording URL — to be added]_
+- **Loom Walkthrough**: [Watch Video](https://www.loom.com/share/9911c3e8e8674c79804dad7e5ad30bb2)
 - **Trello Board**: [Technical Challenge — Solum Health](https://trello.com/invite/b/69d978996fb55e181132780b/ATTIed3ccf2d39b44f624b89ab0eade3690332F5709B/technical-challenge-solum-health)
+
+<div>
+  <a href="https://www.loom.com/share/9911c3e8e8674c79804dad7e5ad30bb2">
+    <p>Solum Health Technical Challenge Live Demo 🚀 - Watch Video</p>
+  </a>
+  <a href="https://www.loom.com/share/9911c3e8e8674c79804dad7e5ad30bb2">
+    <img style="max-width:300px;" src="https://cdn.loom.com/sessions/thumbnails/9911c3e8e8674c79804dad7e5ad30bb2-1c794c8f25d535e7-full-play.gif#t=0.1" alt="Loom Thumbnail">
+  </a>
+</div>
 
 ## Features
 
